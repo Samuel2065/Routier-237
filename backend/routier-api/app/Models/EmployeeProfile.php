@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\EmployeeStatus;
+use App\Models\Concerns\BelongsToAgency;
 use Database\Factories\EmployeeProfileFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class EmployeeProfile extends Model
 {
     /** @use HasFactory<EmployeeProfileFactory> */
-    use HasFactory;
+    use BelongsToAgency, HasFactory;
 
     protected $fillable = [
         'employee_number',

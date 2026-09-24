@@ -6,6 +6,7 @@ use App\Enums\PassengerType;
 use App\Enums\PaymentMethod;
 use App\Enums\ReservationStatus;
 use App\Enums\TripStatus;
+use App\Enums\UserStatus;
 use App\Models\Agency;
 use App\Models\DriverProfile;
 use App\Models\Organization;
@@ -86,7 +87,8 @@ class ModelRelationsTest extends TestCase
             'status' => 'suspended',
         ]);
         $this->assertNull($user->organization_id);
-        $this->assertNull($user->getAttribute('status'));
+        // « suspended » est ignoré : le statut reste la valeur par défaut.
+        $this->assertSame(UserStatus::Active, $user->status);
 
         $payment = new Payment(['method' => 'card', 'status' => 'paid', 'amount' => 1]);
         $this->assertSame(['method' => 'card'], $payment->getAttributes());

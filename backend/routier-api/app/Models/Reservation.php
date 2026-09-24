@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ReservationStatus;
 use Database\Factories\ReservationFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,5 +53,22 @@ class Reservation extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Client : ses propres réservations. Personnel : celles des trajets de ses agences.
+     */
+    public function scopeAccessibleBy(Builder $query, User $user): Builder
+    {
+        if ($user->isCustomer()) {
+            return $query->where($this->qualifyColumn('user_id'), $user->getKey());
+        }
+
+        $ids = $user->accessibleAgencyIds();
+
+        return $ids === null ? $query : $query->whereIn(
+            $this->qualifyColumn('trip_id'),
+            Trip::query()->select('id')->whereIn('agency_id', $ids),
+        );
     }
 }

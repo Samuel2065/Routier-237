@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TripStatus;
+use App\Models\Concerns\BelongsToAgency;
 use Database\Factories\TripFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Trip extends Model
 {
     /** @use HasFactory<TripFactory> */
-    use HasFactory;
+    use BelongsToAgency, HasFactory;
 
     protected $fillable = [
         'route_id',

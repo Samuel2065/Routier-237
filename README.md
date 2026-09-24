@@ -76,6 +76,27 @@ npm run lint
 npm run build
 ```
 
+## Authentification API
+
+Jetons **Bearer Sanctum**, un point d'entrée par espace. Chaque jeton est limité à l'espace
+par lequel l'utilisateur s'est connecté.
+
+| Méthode | URL                            | Accès                                   |
+|---------|--------------------------------|-----------------------------------------|
+| POST    | `/api/v1/auth/register`        | public, crée un compte **client** uniquement |
+| POST    | `/api/v1/auth/login`           | public, clients                         |
+| POST    | `/api/v1/agency/auth/login`    | public, director et personnel d'agence  |
+| POST    | `/api/v1/admin/auth/login`     | public, super_admin                     |
+| GET     | `/api/v1/auth/me`              | jeton : profil, rôle, permissions, périmètre |
+| POST    | `/api/v1/auth/logout`          | jeton : révoque le jeton courant        |
+
+Réponse de connexion : `{ data: { token, token_type: "Bearer", expires_at, space, user } }`.
+Les requêtes suivantes envoient `Authorization: Bearer <token>`.
+
+Les routes privées sont regroupées sous `/api/v1/account/*` (client), `/api/v1/agency/*`
+(agence) et `/api/v1/admin/*` (administrateur). Le middleware `space` y vérifie l'espace
+du jeton et que le compte est toujours actif. Les policies vérifient permission et périmètre.
+
 ## Variables d'environnement
 
 Voir `backend/routier-api/.env.example` (bloc « Routier+237 ») et `frontend/routier-web/.env.example`.
@@ -88,7 +109,7 @@ restent vides dans les fichiers d'exemple.
 |--------|------------------------------------------------------|----------|
 | 0      | Audit et préparation de l'environnement              | Terminé  |
 | 1      | Migrations, modèles, relations, seeders              | Terminé  |
-| 2      | Authentification, rôles, permissions, policies       | À faire  |
+| 2      | Authentification, rôles, permissions, policies       | Terminé  |
 | 3–8    | API organisations, véhicules, trajets, recherche, réservations, paiements | À faire |
 | 9–11   | Frontend public, espace agence, espace admin         | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
@@ -127,3 +148,29 @@ restent vides dans les fichiers d'exemple.
   permissions par module/action et les policies arrivent au module 2.
 - **Tests backend** sur une base MySQL/MariaDB dédiée `routier237_v1_testing`, jamais la base de
   développement. Cela permettra de tester le verrouillage anti-surbooking au module 7.
+
+## Décisions et hypothèses (module 2 — authentification et autorisations)
+
+- **Jetons Bearer plutôt que cookies de session** : le frontend et l'API sont déployés séparément
+  (§23), souvent sur des domaines différents, où les cookies SPA sont fragiles. Les jetons expirent
+  (`SANCTUM_TOKEN_EXPIRATION`, 7 jours par défaut) et une tâche planifiée purge les jetons expirés.
+  Le frontend devra stocker le jeton côté navigateur : cela impose de soigner la protection XSS.
+- **Un jeton = un espace** (ability `space:customer|agency|admin`). Un client ne peut pas appeler
+  l'API agence, le super_admin ne passe pas par l'espace agence, et inversement.
+- **Un rôle par utilisateur en V1** : un employé qui voyage utilise un compte client distinct.
+- **Message d'échec unique** à la connexion (mauvais mot de passe, mauvais espace, compte désactivé),
+  pour ne pas révéler l'existence d'un compte. 5 tentatives par minute par e-mail + IP.
+- **Désactivation immédiate** : si le compte, le profil employé, l'agence ou l'organisation est
+  désactivé, la requête suivante est refusée (403) et le jeton est révoqué.
+- **Permissions « module.action »** (`app/Enums/PermissionName.php`) ; la matrice rôle → permissions
+  est dans `RoleName::permissions()` et se resynchronise avec `php artisan db:seed --class=RoleSeeder`.
+- **Autorisation = permission + périmètre** : chaque policy (`app/Policies`) vérifie la permission
+  Spatie *et* que la ressource appartient à une agence accessible (`User::accessibleAgencyIds()`).
+  Les listes utilisent le scope `accessibleBy($user)`. Un identifiant envoyé par le client n'est
+  jamais une preuve de propriété (§17.3).
+- **Pas d'escalade de privilèges** : un agency_manager ne gère que counter_clerk, accountant et driver ;
+  un director tous les rôles d'agence ; seul le super_admin crée des organisations et des directors.
+- **Messages de validation** : seuls les messages d'authentification sont traduits (`lang/fr/auth.php`).
+  La traduction complète des messages de validation est à décider avec le frontend (module 9).
+- Pas de réinitialisation de mot de passe ni de vérification d'e-mail en V1 : non exigées par le
+  cahier des charges, à ajouter si besoin.

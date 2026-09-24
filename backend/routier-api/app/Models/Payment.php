@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use Database\Factories\PaymentFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -37,5 +38,16 @@ class Payment extends Model
     public function reservation(): BelongsTo
     {
         return $this->belongsTo(Reservation::class);
+    }
+
+    /**
+     * Même périmètre que la réservation associée.
+     */
+    public function scopeAccessibleBy(Builder $query, User $user): Builder
+    {
+        return $query->whereIn(
+            $this->qualifyColumn('reservation_id'),
+            Reservation::query()->select('reservations.id')->accessibleBy($user),
+        );
     }
 }

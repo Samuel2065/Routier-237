@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\RecordStatus;
 use Database\Factories\AgencyFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -57,5 +58,15 @@ class Agency extends Model
     public function trips(): HasMany
     {
         return $this->hasMany(Trip::class);
+    }
+
+    /**
+     * Agences gérables par l'utilisateur (isolation inter-agences).
+     */
+    public function scopeAccessibleBy(Builder $query, User $user): Builder
+    {
+        $ids = $user->accessibleAgencyIds();
+
+        return $ids === null ? $query : $query->whereIn($this->qualifyColumn('id'), $ids);
     }
 }
