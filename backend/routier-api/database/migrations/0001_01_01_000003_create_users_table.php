@@ -15,6 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('phone', 30)->nullable()->unique();
+            // Périmètre « organisation » (rôle director). Le personnel d'agence est rattaché
+            // via employee_profiles.agency_id ; un client n'a aucun rattachement.
+            $table->foreignId('organization_id')->nullable()->constrained()->restrictOnDelete();
+            $table->string('status', 20)->default('active')->index();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
