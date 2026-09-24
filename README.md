@@ -113,6 +113,8 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | public  | `GET travel-classes`                                      | tous                        |
 | public  | `GET trips/search?departure_city_id=&destination_city_id=&date=` (+ `passengers`, `travel_class_id`, `sort=departure\|price`) | tous |
 | public  | `GET trips/{id}` (détail, champ `bookable`), `GET agencies/{id}/trips` | tous          |
+| client  | `GET/POST account/reservations`, `GET account/reservations/{id}`, `POST account/reservations/{id}/cancel` | client (ses réservations) |
+| agence  | `GET agency/reservations` (`?trip_id=&status=&date=&search=`), `GET agency/reservations/{id}`, `POST agency/reservations/{id}/cancel` | director, agency_manager, counter_clerk ; lecture : accountant |
 | agence  | `GET/POST agency/vehicles`, `GET/PATCH/DELETE agency/vehicles/{id}` | director, agency_manager ; lecture : driver |
 | agence  | `GET/POST agency/employees`, `GET/PATCH agency/employees/{id}` (`?role=driver` pour les conducteurs) | director, agency_manager |
 | agence  | `GET/POST agency/routes`                                  | director, agency_manager    |
@@ -139,7 +141,8 @@ restent vides dans les fichiers d'exemple.
 | 4      | API véhicules, classes, employés et conducteurs      | Terminé  |
 | 5      | API itinéraires, trajets et publication              | Terminé  |
 | 6      | API recherche publique                               | Terminé  |
-| 7–8    | API réservations, paiements                          | À faire  |
+| 7      | API réservations et passagers (anti-surbooking)      | Terminé  |
+| 8      | API paiements                                        | À faire  |
 | 9–11   | Frontend public, espace agence, espace admin         | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
@@ -289,3 +292,30 @@ restent vides dans les fichiers d'exemple.
   100 résultats au plus pour un trajet et une date.
 - **Limitation** : endpoints publics limités à 120 requêtes/minute par IP.
 - Pas de suggestion de dates proches ni de correspondances (trajets avec escale) en V1.
+
+## Décisions et hypothèses (module 7 — réservations et passagers)
+
+- **Anti-surbooking** (`CreateReservation`) : transaction + `SELECT … FOR UPDATE` sur la ligne du
+  trajet ; les réservations concurrentes d'un même trajet sont sérialisées et chacune recalcule
+  les places restantes. Refus **409** si le trajet n'est plus réservable ou si les places manquent.
+  Nouvelle tentative automatique en cas d'interblocage MySQL. Test de concurrence réel :
+  8 processus PHP simultanés sur 5 places → exactement 5 réservations (le test échoue si le verrou
+  est retiré).
+- **Places consommées** : réservations confirmées + réservations en attente non expirées.
+  Une réservation est créée **en attente** et bloque ses places `RESERVATION_PENDING_TTL_MINUTES`
+  (15 min par défaut) ; la tâche `reservations:expire` (chaque minute) aligne le statut des
+  réservations dont le délai est dépassé.
+- **Machine d'état** (`ReservationStatus`) : pending → confirmed | cancelled | expired ;
+  confirmed → cancelled ; cancelled et expired sont finaux. Refus : **409**.
+  La confirmation est déclenchée par le paiement (module 8), pas par l'agence.
+- **Annulation** : par le client avant le départ ; par l'agence (réservations de ses trajets) tant
+  que le trajet n'est pas terminé. Le remboursement d'une réservation payée relève du module 8.
+- **Prix** : total = prix du trajet × nombre de passagers, figé à la réservation. Pas de tarif enfant
+  en V1 (non défini par le cahier des charges).
+- **Passagers** : nom obligatoire, type `adult`/`child`, téléphone et date de naissance facultatifs ;
+  un enfant n'a pas besoin de compte. 1 à 20 passagers par réservation.
+- **Non transférable** : aucun point d'entrée ne modifie le titulaire ni les passagers d'une réservation.
+- **Référence** unique `R237-XXXXXXXX` (sans caractères ambigus 0/O, 1/I), lisible au guichet.
+- **Limitation** : 10 créations de réservation par minute et par client.
+- Les notifications (réservation confirmée, annulée par l'agence, trajet annulé) sont prévues avec
+  le module 8.

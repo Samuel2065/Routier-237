@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Account\ReservationController as AccountReservationController;
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
 use App\Http\Controllers\Api\V1\Admin\DirectorController;
 use App\Http\Controllers\Api\V1\Agency\EmployeeController;
+use App\Http\Controllers\Api\V1\Agency\ReservationController as AgencyReservationController;
 use App\Http\Controllers\Api\V1\Agency\TripController;
 use App\Http\Controllers\Api\V1\Agency\VehicleController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -54,7 +56,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     // Espace client.
     Route::middleware(['auth:sanctum', 'space:customer'])->prefix('account')->name('account.')->group(function () {
-        //
+        Route::get('reservations', [AccountReservationController::class, 'index'])->name('reservations.index');
+        Route::post('reservations', [AccountReservationController::class, 'store'])->middleware('throttle:reservations')->name('reservations.store');
+        Route::get('reservations/{reservation}', [AccountReservationController::class, 'show'])->name('reservations.show');
+        Route::post('reservations/{reservation}/cancel', [AccountReservationController::class, 'cancel'])->name('reservations.cancel');
     });
 
     // Espace agence : director et personnel, limités à leur périmètre par les policies.
@@ -66,6 +71,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('employees', EmployeeController::class)->except(['destroy']);
         Route::apiResource('routes', RouteController::class)->only(['index', 'store'])->parameters(['routes' => 'travelRoute']);
         Route::apiResource('trips', TripController::class);
+        Route::get('reservations', [AgencyReservationController::class, 'index'])->name('reservations.index');
+        Route::get('reservations/{reservation}', [AgencyReservationController::class, 'show'])->name('reservations.show');
+        Route::post('reservations/{reservation}/cancel', [AgencyReservationController::class, 'cancel'])->name('reservations.cancel');
         Route::prefix('trips/{trip}')->name('trips.')->group(function () {
             Route::post('publish', [TripController::class, 'publish'])->name('publish');
             Route::post('unpublish', [TripController::class, 'unpublish'])->name('unpublish');

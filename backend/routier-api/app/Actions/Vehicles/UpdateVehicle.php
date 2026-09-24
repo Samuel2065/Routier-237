@@ -46,6 +46,6 @@ class UpdateVehicle
             $vehicle->save();
 
             return $vehicle;
-        });
+        }, attempts: 3); // nouvelle tentative en cas d'interblocage (verrous trajet/véhicule)
     }
 }

@@ -33,5 +33,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Consultation publique (recherche, agences, trajets) : 120 requêtes par minute et par IP.
         RateLimiter::for('public', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
+
+        // Création de réservations : 10 par minute et par client (évite le blocage abusif de places).
+        RateLimiter::for('reservations', fn (Request $request) => Limit::perMinute(10)->by('user:'.$request->user()?->id));
     }
 }

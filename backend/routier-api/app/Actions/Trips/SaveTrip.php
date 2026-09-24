@@ -76,7 +76,7 @@ class SaveTrip
             $trip->save();
 
             return $trip;
-        });
+        }, attempts: 3); // nouvelle tentative en cas d'interblocage (verrous trajet/véhicule)
     }
 
     private function protectExistingReservations(Trip $trip): void

@@ -13,3 +13,6 @@ Schedule::command('sanctum:prune-expired --hours=24')->daily();
 
 // Trajets publiés des jours précédents → terminés (historique).
 Schedule::command('trips:complete-past')->dailyAt('00:30');
+
+// Réservations en attente dont le délai de paiement est dépassé → expirées.
+Schedule::command('reservations:expire')->everyMinute();
