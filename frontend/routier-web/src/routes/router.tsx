@@ -1,11 +1,12 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Navigate } from 'react-router'
 import { PublicLayout } from '@/components/layout/public-layout'
+import { RequireAgency } from '@/features/agency/require-agency'
 import { RequireCustomer } from '@/features/auth/require-customer'
 import { HomePage } from '@/pages/home-page'
 import { NotFoundPage, RouteErrorPage } from '@/pages/not-found-page'
 
 /**
- * Routes publiques et client (§13.1). Espaces agence et administrateur : modules 10 et 11.
+ * Routes publiques et client (§13.1), espace agence (§13.2). Espace administrateur : module 11.
  *
  * Les pages autres que l'accueil sont chargées à la demande (connexions mobiles lentes).
  */
@@ -38,6 +39,34 @@ export const router = createBrowserRouter([
         ],
       },
       { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+
+  // Espace agence (§13.2) : accès direct, sans passer par l'espace public (§4.2).
+  {
+    path: 'agency/login',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await import('@/pages/agency/login-page')).AgencyLoginPage }),
+  },
+  {
+    path: 'agency',
+    element: <RequireAgency />,
+    errorElement: <RouteErrorPage />,
+    children: [
+      {
+        lazy: async () => ({ Component: (await import('@/components/layout/agency-layout')).AgencyLayout }),
+        children: [
+          { index: true, element: <Navigate to="/agency/dashboard" replace /> },
+          { path: 'dashboard', lazy: async () => ({ Component: (await import('@/pages/agency/dashboard-page')).AgencyDashboardPage }) },
+          { path: 'trips', lazy: async () => ({ Component: (await import('@/pages/agency/trips-page')).AgencyTripsPage }) },
+          { path: 'reservations', lazy: async () => ({ Component: (await import('@/pages/agency/reservations-page')).AgencyReservationsPage }) },
+          { path: 'vehicles', lazy: async () => ({ Component: (await import('@/pages/agency/vehicles-page')).AgencyVehiclesPage }) },
+          { path: 'employees', lazy: async () => ({ Component: (await import('@/pages/agency/employees-page')).AgencyEmployeesPage }) },
+          { path: 'payments', lazy: async () => ({ Component: (await import('@/pages/agency/payments-page')).AgencyPaymentsPage }) },
+          { path: 'settings', lazy: async () => ({ Component: (await import('@/pages/agency/settings-page')).AgencySettingsPage }) },
+          { path: '*', element: <NotFoundPage /> },
+        ],
+      },
     ],
   },
 ])

@@ -34,6 +34,8 @@ export interface User {
   status: 'active' | 'suspended'
   role: RoleName | null
   permissions: string[]
+  /** Rôles que l'utilisateur peut attribuer au personnel (espace agence). */
+  assignable_roles?: RoleName[]
   organization: { id: number; name: string } | null
   agency: { id: number; name: string } | null
   created_at: string
@@ -179,4 +181,123 @@ export interface NotificationPage {
 /** Enveloppe { data: ... } des API Resources Laravel. */
 export interface Envelope<T> {
   data: T
+}
+
+/* ------------------------------------------------------------------ */
+/* Espace agence                                                       */
+/* ------------------------------------------------------------------ */
+
+export type RecordStatus = 'active' | 'inactive'
+export type TripStatus = 'draft' | 'published' | 'cancelled' | 'completed'
+export type VehicleStatus = 'active' | 'maintenance' | 'retired'
+export type EmployeeStatus = 'active' | 'suspended' | 'terminated'
+
+export interface RouteRecord {
+  id: number
+  departure_city: City
+  destination_city: City
+  estimated_duration_minutes: number | null
+  distance_km: number | null
+  status: RecordStatus
+}
+
+export interface ManagedTrip {
+  id: number
+  agency: { id: number; name: string }
+  route: RouteRecord
+  vehicle: { id: number; registration_number: string; brand: string; model: string; status: VehicleStatus }
+  travel_class: TravelClass
+  departure_date: string
+  departure_time: string
+  departs_at: string
+  arrives_at?: string
+  price: number
+  currency: 'XAF'
+  status: TripStatus
+  capacity: number
+  reserved_seats: number
+  remaining_seats: number
+  created_at: string
+}
+
+export interface Vehicle {
+  id: number
+  agency?: { id: number; name: string }
+  travel_class?: TravelClass
+  registration_number: string
+  brand: string
+  model: string
+  capacity: number
+  amenities: string[]
+  status: VehicleStatus
+  upcoming_trips_count?: number
+  created_at: string
+}
+
+export interface Employee {
+  id: number
+  user: { id: number; name: string; email: string; phone: string | null; status: 'active' | 'suspended' }
+  role: RoleName | null
+  agency: { id: number; name: string }
+  employee_number: string
+  hired_at: string | null
+  status: EmployeeStatus
+  driver_profile: {
+    license_number: string
+    license_expires_at: string
+    license_expired: boolean
+    status: RecordStatus
+  } | null
+  created_at: string
+}
+
+export interface ManagedAgency {
+  id: number
+  organization_id: number
+  organization?: { id: number; name: string; status: RecordStatus }
+  city?: City
+  name: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  description: string | null
+  status: RecordStatus
+  employees_count?: number
+  vehicles_count?: number
+}
+
+export interface Organization {
+  id: number
+  name: string
+  slug: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  status: RecordStatus
+  agencies_count?: number
+  agencies?: ManagedAgency[]
+  directors?: { id: number; name: string; email: string; phone: string | null; status: string }[]
+}
+
+export interface AgencyReservation extends Reservation {
+  customer?: { id: number; name: string; email: string; phone: string | null }
+}
+
+export interface AgencyDashboard {
+  agency: { id: number; name: string } | null
+  trips: { today: number; published_next_7_days: number; drafts: number }
+  next_departures: {
+    id: number
+    agency: string
+    departure_city: string
+    destination_city: string
+    departure_date: string
+    departure_time: string
+    travel_class: string
+    capacity: number
+    reserved_seats: number
+  }[]
+  reservations: { pending: number; confirmed_last_7_days: number; passengers_upcoming: number } | null
+  payments: { paid_this_month_amount: number; paid_this_month_count: number; requires_refund: number } | null
+  fleet: { active: number; maintenance: number } | null
 }

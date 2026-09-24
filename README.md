@@ -113,6 +113,7 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 |---------|-----------------------------------------------------------|-----------------------------|
 | public  | `GET cities`                                              | tous                        |
 | public  | `GET agencies?city_id=&search=`, `GET agencies/{id}`      | tous (agences actives)      |
+| agence  | `GET agency/dashboard` (`?agency_id=`)                    | tout le personnel (blocs selon permissions) |
 | agence  | `GET/PATCH agency/organizations/{id}`                     | director (son organisation) |
 | agence  | `GET/POST agency/agencies`, `GET/PATCH agency/agencies/{id}` | director (ses agences) ; lecture : responsable d'agence |
 | agence  | `PATCH agency/agencies/{id}/settings`                     | director, agency_manager    |
@@ -160,7 +161,8 @@ restent vides dans les fichiers d'exemple.
 | 7      | API réservations et passagers (anti-surbooking)      | Terminé  |
 | 8      | API paiements et notifications                       | Terminé  |
 | 9      | Frontend public et espace client                     | Terminé  |
-| 10–11  | Frontend espace agence, espace admin                 | À faire  |
+| 10     | Frontend espace agence (+ tableau de bord API)       | Terminé  |
+| 11     | Frontend espace administrateur                       | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
 ## Décisions et hypothèses (module 0)
@@ -391,3 +393,28 @@ restent vides dans les fichiers d'exemple.
   réservation, formatage, erreurs d'API, redirections sûres.
 - Le bundle initial (~155 Ko compressés) reste signalé au-dessus de 500 Ko non compressés par Vite
   (React, routeur, requêtes, composants) : avertissement non bloquant, à optimiser au module 12 si besoin.
+
+## Décisions et hypothèses (module 10 — espace agence)
+
+- **Accès** : `/agency/login` directement, sans passer par l'espace public (§4.2). Jeton limité à
+  l'espace agence, conservé séparément de la session client.
+- **Interface métier** (§18.2) : navigation latérale, tableaux paginés, filtres portés par l'URL,
+  actions contextuelles par ligne, formulaires en panneau latéral, confirmation des opérations
+  sensibles (annuler un trajet ou une réservation, rembourser, supprimer), messages de réussite/échec.
+- **Menus et boutons selon les permissions** renvoyées par `/auth/me` (profil rechargé à l'ouverture
+  de l'espace). Simple confort : chaque action reste contrôlée par l'API (403 sinon).
+- **Tableau de bord** : nouvel endpoint `GET /api/v1/agency/dashboard` (départs, brouillons, passagers
+  confirmés, encaissements du mois, paiements à rembourser, flotte, prochains départs avec taux de
+  remplissage). Chaque bloc n'est calculé qu'avec la permission correspondante ; `agency_id` hors
+  périmètre → 403.
+- **Director multi-agences** : sélecteur d'agence sur les listes et dans les formulaires de création ;
+  le personnel d'une seule agence travaille dans la sienne sans avoir à la choisir.
+- **Rôles attribuables** exposés par l'API (`assignable_roles` dans `/auth/me`) : le formulaire du
+  personnel ne propose que les rôles acceptés par le serveur, sans dupliquer la règle.
+- **Trajets** : la classe affichée est celle du véhicule choisi ; création rapide d'un itinéraire
+  manquant depuis le formulaire. Les refus métier de l'API (chevauchement, places déjà réservées,
+  transition interdite) sont affichés tels quels.
+- **Paramètres** : le responsable d'agence modifie coordonnées et présentation publique ; le director
+  modifie le profil de l'organisation et crée/modifie/désactive ses agences.
+- **Tests frontend** : navigation selon les permissions, annulation d'un trajet avec confirmation,
+  actions masquées pour un conducteur.

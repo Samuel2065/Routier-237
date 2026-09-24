@@ -30,6 +30,8 @@ class UserResource extends JsonResource
             'status' => $this->status,
             'role' => $this->primaryRole(),
             'permissions' => $this->getAllPermissions()->pluck('name')->sort()->values(),
+            // Rôles que l'utilisateur peut attribuer (formulaire du personnel) ; l'API revérifie.
+            'assignable_roles' => array_map(fn ($role) => $role->value, $this->assignableRoles()),
             'organization' => $organization ? [
                 'id' => $organization->id,
                 'name' => $organization->name,

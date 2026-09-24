@@ -47,3 +47,6 @@ export const publicApi = createApiClient()
 
 /** Espace client (/account/*, /auth/me, /auth/logout avec le jeton client). */
 export const customerApi = createApiClient('customer')
+
+/** Espace agence (/agency/*, /auth/me, /auth/logout avec le jeton agence). */
+export const agencyApi = createApiClient('agency')

@@ -172,7 +172,12 @@ export function PublicLayout() {
       <footer className="border-t bg-muted/40">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Routier+237 — Réservation de voyages routiers au Cameroun.</p>
-          <p>Paiement par Orange Money, MTN MoMo ou carte bancaire.</p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>Paiement par Orange Money, MTN MoMo ou carte bancaire.</span>
+            <Link to="/agency/login" className="underline-offset-4 hover:underline">
+              Espace agence
+            </Link>
+          </p>
         </div>
       </footer>
     </div>

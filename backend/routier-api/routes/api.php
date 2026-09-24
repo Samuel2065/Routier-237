@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Account\PaymentController as AccountPaymentContr
 use App\Http\Controllers\Api\V1\Account\ReservationController as AccountReservationController;
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
 use App\Http\Controllers\Api\V1\Admin\DirectorController;
+use App\Http\Controllers\Api\V1\Agency\DashboardController;
 use App\Http\Controllers\Api\V1\Agency\EmployeeController;
 use App\Http\Controllers\Api\V1\Agency\PaymentController as AgencyPaymentController;
 use App\Http\Controllers\Api\V1\Agency\ReservationController as AgencyReservationController;
@@ -77,6 +78,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     // Espace agence : director et personnel, limités à leur périmètre par les policies.
     Route::middleware(['auth:sanctum', 'space:agency'])->prefix('agency')->name('agency.')->group(function () {
+        Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::apiResource('organizations', OrganizationController::class)->only(['show', 'update']);
         Route::apiResource('agencies', AgencyController::class)->except(['destroy']);
         Route::patch('agencies/{agency}/settings', [AgencyController::class, 'updateSettings'])->name('agencies.settings');
