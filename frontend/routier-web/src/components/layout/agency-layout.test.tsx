@@ -10,7 +10,7 @@ vi.mock('@/api/agency', () => ({
 }))
 
 function navLabels() {
-  const nav = screen.getByRole('navigation', { name: "Navigation de l'espace agence" })
+  const nav = screen.getByRole('navigation', { name: 'Navigation — Espace agence' })
   return within(nav)
     .getAllByRole('link')
     .map((link) => link.textContent)

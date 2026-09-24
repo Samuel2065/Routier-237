@@ -277,6 +277,8 @@ export interface Organization {
   agencies_count?: number
   agencies?: ManagedAgency[]
   directors?: { id: number; name: string; email: string; phone: string | null; status: string }[]
+  created_at?: string
+  updated_at?: string
 }
 
 export interface AgencyReservation extends Reservation {
@@ -300,4 +302,29 @@ export interface AgencyDashboard {
   reservations: { pending: number; confirmed_last_7_days: number; passengers_upcoming: number } | null
   payments: { paid_this_month_amount: number; paid_this_month_count: number; requires_refund: number } | null
   fleet: { active: number; maintenance: number } | null
+}
+
+/* ------------------------------------------------------------------ */
+/* Espace administrateur                                               */
+/* ------------------------------------------------------------------ */
+
+export interface AdminUser {
+  id: number
+  name: string
+  email: string
+  phone: string | null
+  status: 'active' | 'suspended'
+  role: RoleName | null
+  organization: { id: number; name: string } | null
+  agency: { id: number; name: string } | null
+  created_at: string
+}
+
+export interface AdminDashboard {
+  organizations: { active: number; inactive: number }
+  agencies: { active: number; inactive: number }
+  users: { customers: number; staff: number; suspended: number }
+  trips: { published_next_7_days: number }
+  reservations: { confirmed_last_30_days: number; pending: number }
+  payments: { paid_this_month_amount: number; requires_refund: number }
 }

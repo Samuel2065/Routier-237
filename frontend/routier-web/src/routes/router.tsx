@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { PublicLayout } from '@/components/layout/public-layout'
+import { RequireAdmin } from '@/features/admin/require-admin'
 import { RequireAgency } from '@/features/agency/require-agency'
 import { RequireAgencyPermission } from '@/features/agency/require-permission'
 import { sectionPermissions } from '@/features/agency/sections'
@@ -8,7 +9,7 @@ import { HomePage } from '@/pages/home-page'
 import { NotFoundPage, RouteErrorPage } from '@/pages/not-found-page'
 
 /**
- * Routes publiques et client (§13.1), espace agence (§13.2). Espace administrateur : module 11.
+ * Routes publiques et client (§13.1), espace agence (§13.2), espace administrateur (§13.3).
  *
  * Les pages autres que l'accueil sont chargées à la demande (connexions mobiles lentes).
  */
@@ -94,6 +95,36 @@ export const router = createBrowserRouter([
             element: <RequireAgencyPermission anyOf={sectionPermissions('settings')} />,
             children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/settings-page')).AgencySettingsPage }) }],
           },
+          { path: '*', element: <NotFoundPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Espace administrateur de la plateforme (§13.3), distinct de l'espace agence (§4.3).
+  {
+    path: 'admin/login',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await import('@/pages/admin/login-page')).AdminLoginPage }),
+  },
+  {
+    path: 'admin',
+    element: <RequireAdmin />,
+    errorElement: <RouteErrorPage />,
+    children: [
+      {
+        lazy: async () => ({ Component: (await import('@/components/layout/admin-layout')).AdminLayout }),
+        children: [
+          { index: true, element: <Navigate to="/admin/dashboard" replace /> },
+          { path: 'dashboard', lazy: async () => ({ Component: (await import('@/pages/admin/dashboard-page')).AdminDashboardPage }) },
+          { path: 'organizations', lazy: async () => ({ Component: (await import('@/pages/admin/organizations-page')).AdminOrganizationsPage }) },
+          {
+            path: 'organizations/:id',
+            lazy: async () => ({ Component: (await import('@/pages/admin/organization-detail-page')).AdminOrganizationDetailPage }),
+          },
+          { path: 'agencies', lazy: async () => ({ Component: (await import('@/pages/admin/agencies-page')).AdminAgenciesPage }) },
+          { path: 'users', lazy: async () => ({ Component: (await import('@/pages/admin/users-page')).AdminUsersPage }) },
+          { path: 'referentials', lazy: async () => ({ Component: (await import('@/pages/admin/referentials-page')).AdminReferentialsPage }) },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

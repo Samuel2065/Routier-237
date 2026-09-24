@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { UseMutationResult } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -11,15 +12,18 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { useSaveAgency } from '@/features/agency/queries'
 import { useCities } from '@/features/trips/queries'
 import { applyServerErrors, getErrorMessage, getFieldErrors } from '@/lib/api-error'
 import { fieldAria } from '@/lib/field-aria'
 import { RECORD_STATUS_LABELS } from '@/lib/labels'
 import { isValidPhone, normalizePhone } from '@/lib/validation'
+import type { AgencyInput } from '@/api/agency'
 import type { ManagedAgency } from '@/types/api'
 
+export type SaveAgencyMutation = UseMutationResult<ManagedAgency, Error, { id?: number; input: AgencyInput }>
+
 const agencySchema = z.object({
+  organization_id: z.number().int().positive().optional(),
   name: z.string().trim().min(2, { error: "Indiquez le nom de l'agence." }).max(150),
   city_id: z.number({ error: 'Choisissez la ville.' }).int().positive({ error: 'Choisissez la ville.' }),
   email: z.string().trim().refine((value) => value === '' || z.email().safeParse(value).success, { error: 'Adresse e-mail invalide.' }),
@@ -31,24 +35,43 @@ const agencySchema = z.object({
 
 type AgencyFormValues = z.infer<typeof agencySchema>
 
-export function AgencyFormSheet({ open, onOpenChange, agency }: { open: boolean; onOpenChange: (open: boolean) => void; agency?: ManagedAgency }) {
+interface AgencyFormSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  agency?: ManagedAgency
+  save: SaveAgencyMutation
+  /** Espace administrateur : organisation à choisir lors d'une création. */
+  organizations?: { id: number; name: string }[]
+}
+
+export function AgencyFormSheet({ open, onOpenChange, agency, save, organizations }: AgencyFormSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        {open && <AgencyForm key={agency?.id ?? 'new'} agency={agency} onDone={() => onOpenChange(false)} />}
+        {open && <AgencyForm key={agency?.id ?? 'new'} agency={agency} save={save} organizations={organizations} onDone={() => onOpenChange(false)} />}
       </SheetContent>
     </Sheet>
   )
 }
 
 /**
- * Création / modification d'une agence de l'organisation par le director.
+ * Création / modification d'une agence (director pour son organisation, ou plateforme).
  * Désactiver une agence la retire de la recherche et coupe l'accès de son personnel.
  */
-function AgencyForm({ agency, onDone }: { agency?: ManagedAgency; onDone: () => void }) {
+function AgencyForm({
+  agency,
+  save: saveAgency,
+  organizations,
+  onDone,
+}: {
+  agency?: ManagedAgency
+  save: SaveAgencyMutation
+  organizations?: { id: number; name: string }[]
+  onDone: () => void
+}) {
   const cities = useCities()
-  const saveAgency = useSaveAgency()
   const editing = !!agency
+  const chooseOrganization = !editing && !!organizations
 
   const {
     control,
@@ -59,6 +82,7 @@ function AgencyForm({ agency, onDone }: { agency?: ManagedAgency; onDone: () => 
   } = useForm<AgencyFormValues>({
     resolver: zodResolver(agencySchema),
     defaultValues: {
+      organization_id: organizations?.length === 1 ? organizations[0].id : undefined,
       name: agency?.name ?? '',
       city_id: agency?.city?.id,
       email: agency?.email ?? '',
@@ -69,12 +93,18 @@ function AgencyForm({ agency, onDone }: { agency?: ManagedAgency; onDone: () => 
     },
   })
 
-  const onSubmit = handleSubmit((values) =>
+  const onSubmit = handleSubmit((values) => {
+    if (chooseOrganization && !values.organization_id) {
+      setError('organization_id', { message: "Choisissez l'organisation." })
+      return
+    }
+    const { organization_id: organizationId, ...fields } = values
     saveAgency.mutate(
       {
         id: agency?.id,
         input: {
-          ...values,
+          ...fields,
+          ...(chooseOrganization ? { organization_id: organizationId } : {}),
           email: values.email || null,
           phone: values.phone ? normalizePhone(values.phone) : null,
           address: values.address || null,
@@ -90,8 +120,8 @@ function AgencyForm({ agency, onDone }: { agency?: ManagedAgency; onDone: () => 
           applyServerErrors(error, setError)
         },
       },
-    ),
-  )
+    )
+  })
 
   const generalError = saveAgency.isError && Object.keys(getFieldErrors(saveAgency.error)).length === 0 ? getErrorMessage(saveAgency.error) : null
 
@@ -103,6 +133,28 @@ function AgencyForm({ agency, onDone }: { agency?: ManagedAgency; onDone: () => 
       </SheetHeader>
 
       <form onSubmit={onSubmit} noValidate className="grid gap-4 px-4 pb-6">
+        {chooseOrganization && (
+          <FormField id="agency-organization" label="Organisation" required error={errors.organization_id?.message}>
+            <Controller
+              control={control}
+              name="organization_id"
+              render={({ field }) => (
+                <Select value={field.value ? String(field.value) : ''} onValueChange={(value) => field.onChange(Number(value))}>
+                  <SelectTrigger id="agency-organization" className="w-full" aria-invalid={!!errors.organization_id || undefined}>
+                    <SelectValue placeholder="Choisir une organisation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations?.map((organization) => (
+                      <SelectItem key={organization.id} value={String(organization.id)}>
+                        {organization.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </FormField>
+        )}
         <FormField id="agency-name" label="Nom" required error={errors.name?.message}>
           <Input {...fieldAria('agency-name', errors.name?.message)} {...register('name')} />
         </FormField>

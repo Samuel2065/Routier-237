@@ -50,3 +50,6 @@ export const customerApi = createApiClient('customer')
 
 /** Espace agence (/agency/*, /auth/me, /auth/logout avec le jeton agence). */
 export const agencyApi = createApiClient('agency')
+
+/** Espace administrateur (/admin/*, /auth/me, /auth/logout avec le jeton admin). */
+export const adminApi = createApiClient('admin')

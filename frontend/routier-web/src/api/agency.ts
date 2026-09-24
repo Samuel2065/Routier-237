@@ -56,6 +56,8 @@ export async function fetchDashboard(agencyId?: number): Promise<AgencyDashboard
 /* Agences et organisation ------------------------------------------------ */
 
 export interface AgencyInput {
+  /** Espace administrateur uniquement (l'espace agence refuse ce champ). */
+  organization_id?: number
   city_id?: number
   name?: string
   email?: string | null

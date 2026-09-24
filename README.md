@@ -117,6 +117,8 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | agence  | `GET/PATCH agency/organizations/{id}`                     | director (son organisation) |
 | agence  | `GET/POST agency/agencies`, `GET/PATCH agency/agencies/{id}` | director (ses agences) ; lecture : responsable d'agence |
 | agence  | `PATCH agency/agencies/{id}/settings`                     | director, agency_manager    |
+| admin   | `GET admin/dashboard`                                     | super_admin                 |
+| admin   | `GET admin/users` (`?role=&status=&search=&organization_id=`), `GET/PATCH admin/users/{id}` (statut) | super_admin |
 | admin   | `GET/POST admin/organizations`, `GET/PATCH admin/organizations/{id}` | super_admin      |
 | admin   | `POST admin/organizations/{id}/directors`                 | super_admin                 |
 | admin   | `GET/POST admin/agencies`, `GET/PATCH admin/agencies/{id}` | super_admin                |
@@ -162,7 +164,7 @@ restent vides dans les fichiers d'exemple.
 | 8      | API paiements et notifications                       | Terminé  |
 | 9      | Frontend public et espace client                     | Terminé  |
 | 10     | Frontend espace agence (+ tableau de bord API)       | Terminé  |
-| 11     | Frontend espace administrateur                       | À faire  |
+| 11     | Frontend espace administrateur (+ supervision et comptes API) | Terminé  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
 ## Décisions et hypothèses (module 0)
@@ -418,3 +420,24 @@ restent vides dans les fichiers d'exemple.
   modifie le profil de l'organisation et crée/modifie/désactive ses agences.
 - **Tests frontend** : navigation selon les permissions, annulation d'un trajet avec confirmation,
   actions masquées pour un conducteur.
+
+## Décisions et hypothèses (module 11 — espace administrateur)
+
+- **Accès** : `/admin/login`, jeton limité à l'espace administrateur, réservé au super_admin (§4.3).
+- **Pages** (§13.3) : supervision (`/admin/dashboard`), organisations (liste, création, détail avec
+  profil, suspension/réactivation, agences et création des directeurs), agences de toutes les
+  organisations, utilisateurs (`/admin/users`), et référentiels villes/itinéraires
+  (`/admin/referentials`).
+- **Nouveaux endpoints** : `GET /api/v1/admin/dashboard` (indicateurs globaux) et
+  `GET/PATCH /api/v1/admin/users` (liste filtrable ; suspension/réactivation, jetons révoqués à la
+  suspension, pas d'auto-suspension).
+- **Périmètre du contrôle des comptes** : la plateforme suspend ou réactive un compte ; les rôles et
+  rattachements du personnel se gèrent dans l'espace agence de chaque organisation (pas de
+  modification de rôle depuis l'administration en V1).
+- **Suspension d'une organisation** : confirmation explicite ; son personnel perd l'accès et ses
+  agences disparaissent de la recherche publique (règles déjà appliquées par l'API).
+- **Composants partagés** : la mise en page des espaces privés (`BackOfficeLayout`), la page de
+  connexion (`BackOfficeLogin`) et les formulaires d'agence et d'organisation servent aux espaces
+  agence et administration (mutation d'enregistrement fournie par chaque espace).
+- **Messages d'erreur** : les refus par défaut du framework (403, 401) sont renvoyés en français ;
+  dans l'espace agence, une section non autorisée affiche « Accès non autorisé » sans appeler l'API.

@@ -4,7 +4,9 @@ use App\Http\Controllers\Api\V1\Account\NotificationController;
 use App\Http\Controllers\Api\V1\Account\PaymentController as AccountPaymentController;
 use App\Http\Controllers\Api\V1\Account\ReservationController as AccountReservationController;
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
+use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\DirectorController;
+use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\V1\Agency\DashboardController;
 use App\Http\Controllers\Api\V1\Agency\EmployeeController;
 use App\Http\Controllers\Api\V1\Agency\PaymentController as AgencyPaymentController;
@@ -102,6 +104,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     // Espace administrateur de la plateforme.
     Route::middleware(['auth:sanctum', 'space:admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('dashboard', AdminDashboardController::class)->name('dashboard');
+        Route::apiResource('users', AdminUserController::class)->only(['index', 'show', 'update']);
         Route::apiResource('organizations', OrganizationController::class)->except(['destroy']);
         Route::post('organizations/{organization}/directors', [DirectorController::class, 'store'])->name('organizations.directors.store');
         Route::apiResource('agencies', AgencyController::class)->except(['destroy']);

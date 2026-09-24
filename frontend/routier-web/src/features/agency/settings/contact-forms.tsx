@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useUpdateAgencySettings, useUpdateOrganization } from '@/features/agency/queries'
+import { useUpdateAgencySettings } from '@/features/agency/queries'
 import { applyServerErrors, getErrorMessage, getFieldErrors } from '@/lib/api-error'
 import { fieldAria } from '@/lib/field-aria'
 import { isValidPhone, normalizePhone } from '@/lib/validation'
@@ -107,10 +107,22 @@ const organizationSchema = z.object({
 })
 
 /**
- * Profil de l'organisation par son director (le statut reste du ressort de la plateforme).
+ * Profil d'une organisation (director pour la sienne, ou plateforme). Le statut se gère à part.
  */
-export function OrganizationForm({ organization }: { organization: Organization }) {
-  const update = useUpdateOrganization()
+/**
+ * Ce dont le formulaire a besoin d'une mutation d'enregistrement (espace agence ou administration).
+ */
+export interface SaveOrganizationMutation {
+  mutate: (
+    variables: { id: number; input: { name?: string; email?: string | null; phone?: string | null; address?: string | null } },
+    options?: { onSuccess?: () => void; onError?: (error: Error) => void },
+  ) => void
+  isPending: boolean
+  isError: boolean
+  error: Error | null
+}
+
+export function OrganizationForm({ organization, save: update }: { organization: Organization; save: SaveOrganizationMutation }) {
   const {
     register,
     handleSubmit,

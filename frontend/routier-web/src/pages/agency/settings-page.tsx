@@ -6,7 +6,7 @@ import { RecordStatusBadge } from '@/components/common/status-badges'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useManagedAgencies, useOrganization } from '@/features/agency/queries'
+import { useManagedAgencies, useOrganization, useSaveAgency, useUpdateOrganization } from '@/features/agency/queries'
 import { useCan } from '@/features/agency/session'
 import { AgencyFormSheet } from '@/features/agency/settings/agency-form-sheet'
 import { AgencySettingsForm, OrganizationForm } from '@/features/agency/settings/contact-forms'
@@ -25,6 +25,8 @@ export function AgencySettingsPage() {
   const isDirector = !!user && user.agency === null && !!user.organization
   const agencies = useManagedAgencies(can('agencies.view'))
   const organization = useOrganization(isDirector && can('organizations.update') ? user?.organization?.id : undefined)
+  const saveAgency = useSaveAgency()
+  const updateOrganization = useUpdateOrganization()
   const [editing, setEditing] = useState<ManagedAgency | undefined>()
   const [formOpen, setFormOpen] = useState(false)
 
@@ -64,7 +66,7 @@ export function AgencySettingsPage() {
               <CardContent>
                 {organization.isPending && <LoadingState rows={1} />}
                 {organization.isError && <ErrorState message={getErrorMessage(organization.error)} onRetry={() => organization.refetch()} />}
-                {organization.data && <OrganizationForm key={organization.data.id} organization={organization.data} />}
+                {organization.data && <OrganizationForm key={organization.data.id} organization={organization.data} save={updateOrganization} />}
               </CardContent>
             </Card>
           )}
@@ -129,7 +131,7 @@ export function AgencySettingsPage() {
         </>
       )}
 
-      <AgencyFormSheet open={formOpen} onOpenChange={setFormOpen} agency={editing} />
+      <AgencyFormSheet open={formOpen} onOpenChange={setFormOpen} agency={editing} save={saveAgency} />
     </div>
   )
 }
