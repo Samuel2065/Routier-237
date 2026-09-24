@@ -53,6 +53,19 @@ class SpaceSeparationTest extends TestCase
         }
     }
 
+    public function test_default_refusal_messages_are_in_french(): void
+    {
+        $driver = $this->staff(RoleName::Driver, Agency::factory()->create());
+        $token = $this->token('/api/v1/agency/auth/login', $driver);
+
+        $this->withToken($token)->getJson('/api/v1/agency/agencies')
+            ->assertForbidden()
+            ->assertExactJson(['message' => "Vous n'êtes pas autorisé à effectuer cette action."]);
+
+        $this->app['auth']->forgetGuards();
+        $this->withoutToken()->getJson('/api/v1/auth/me')->assertUnauthorized()->assertExactJson(['message' => 'Authentification requise.']);
+    }
+
     public function test_guests_cannot_open_private_spaces(): void
     {
         foreach (['customer', 'agency', 'admin'] as $space) {

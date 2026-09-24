@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { PublicLayout } from '@/components/layout/public-layout'
 import { RequireAgency } from '@/features/agency/require-agency'
+import { RequireAgencyPermission } from '@/features/agency/require-permission'
+import { sectionPermissions } from '@/features/agency/sections'
 import { RequireCustomer } from '@/features/auth/require-customer'
 import { HomePage } from '@/pages/home-page'
 import { NotFoundPage, RouteErrorPage } from '@/pages/not-found-page'
@@ -57,13 +59,41 @@ export const router = createBrowserRouter([
         lazy: async () => ({ Component: (await import('@/components/layout/agency-layout')).AgencyLayout }),
         children: [
           { index: true, element: <Navigate to="/agency/dashboard" replace /> },
-          { path: 'dashboard', lazy: async () => ({ Component: (await import('@/pages/agency/dashboard-page')).AgencyDashboardPage }) },
-          { path: 'trips', lazy: async () => ({ Component: (await import('@/pages/agency/trips-page')).AgencyTripsPage }) },
-          { path: 'reservations', lazy: async () => ({ Component: (await import('@/pages/agency/reservations-page')).AgencyReservationsPage }) },
-          { path: 'vehicles', lazy: async () => ({ Component: (await import('@/pages/agency/vehicles-page')).AgencyVehiclesPage }) },
-          { path: 'employees', lazy: async () => ({ Component: (await import('@/pages/agency/employees-page')).AgencyEmployeesPage }) },
-          { path: 'payments', lazy: async () => ({ Component: (await import('@/pages/agency/payments-page')).AgencyPaymentsPage }) },
-          { path: 'settings', lazy: async () => ({ Component: (await import('@/pages/agency/settings-page')).AgencySettingsPage }) },
+          {
+            path: 'dashboard',
+            element: <RequireAgencyPermission anyOf={sectionPermissions('dashboard')} />,
+            children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/dashboard-page')).AgencyDashboardPage }) }],
+          },
+          {
+            path: 'trips',
+            element: <RequireAgencyPermission anyOf={sectionPermissions('trips')} />,
+            children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/trips-page')).AgencyTripsPage }) }],
+          },
+          {
+            path: 'reservations',
+            element: <RequireAgencyPermission anyOf={sectionPermissions('reservations')} />,
+            children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/reservations-page')).AgencyReservationsPage }) }],
+          },
+          {
+            path: 'vehicles',
+            element: <RequireAgencyPermission anyOf={sectionPermissions('vehicles')} />,
+            children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/vehicles-page')).AgencyVehiclesPage }) }],
+          },
+          {
+            path: 'employees',
+            element: <RequireAgencyPermission anyOf={sectionPermissions('employees')} />,
+            children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/employees-page')).AgencyEmployeesPage }) }],
+          },
+          {
+            path: 'payments',
+            element: <RequireAgencyPermission anyOf={sectionPermissions('payments')} />,
+            children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/payments-page')).AgencyPaymentsPage }) }],
+          },
+          {
+            path: 'settings',
+            element: <RequireAgencyPermission anyOf={sectionPermissions('settings')} />,
+            children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/settings-page')).AgencySettingsPage }) }],
+          },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

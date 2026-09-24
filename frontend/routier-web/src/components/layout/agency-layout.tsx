@@ -1,4 +1,4 @@
-import { Bus, CalendarClock, LayoutDashboard, LogOut, Menu, Settings, Ticket, UserRound, Users, Wallet, type LucideIcon } from 'lucide-react'
+import { Bus, LogOut, Menu, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -11,38 +11,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { AGENCY_SECTIONS } from '@/features/agency/sections'
 import { useAgencyLogout, useAgencyProfileRefresh, useCan } from '@/features/agency/session'
 import { ROLE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/store/auth-store'
-
-interface NavItem {
-  to: string
-  label: string
-  icon: LucideIcon
-  permissions: string[]
-}
-
-/** Entrées de menu ; chacune n'apparaît qu'avec l'une des permissions correspondantes. */
-const NAV_ITEMS: NavItem[] = [
-  { to: '/agency/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, permissions: ['dashboard.view'] },
-  { to: '/agency/trips', label: 'Trajets', icon: CalendarClock, permissions: ['trips.view'] },
-  { to: '/agency/reservations', label: 'Réservations', icon: Ticket, permissions: ['reservations.view'] },
-  { to: '/agency/vehicles', label: 'Véhicules', icon: Bus, permissions: ['vehicles.view'] },
-  { to: '/agency/employees', label: 'Personnel', icon: Users, permissions: ['employees.view'] },
-  { to: '/agency/payments', label: 'Paiements', icon: Wallet, permissions: ['payments.view'] },
-  { to: '/agency/settings', label: 'Paramètres', icon: Settings, permissions: ['agency_settings.update', 'organizations.update'] },
-]
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const can = useCan()
 
   return (
     <nav className="grid gap-1" aria-label="Navigation de l'espace agence">
-      {NAV_ITEMS.filter((item) => item.permissions.some(can)).map(({ to, label, icon: Icon }) => (
+      {AGENCY_SECTIONS.filter((section) => section.permissions.some(can)).map(({ path, label, icon: Icon }) => (
         <NavLink
-          key={to}
-          to={to}
+          key={path}
+          to={`/agency/${path}`}
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
