@@ -113,6 +113,10 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | public  | `GET travel-classes`                                      | tous                        |
 | agence  | `GET/POST agency/vehicles`, `GET/PATCH/DELETE agency/vehicles/{id}` | director, agency_manager ; lecture : driver |
 | agence  | `GET/POST agency/employees`, `GET/PATCH agency/employees/{id}` (`?role=driver` pour les conducteurs) | director, agency_manager |
+| agence  | `GET/POST agency/routes`                                  | director, agency_manager    |
+| admin   | `GET/POST admin/routes`, `PATCH admin/routes/{id}`        | super_admin                 |
+| agence  | `GET/POST agency/trips`, `GET/PATCH/DELETE agency/trips/{id}` | director, agency_manager ; lecture : tout le personnel |
+| agence  | `POST agency/trips/{id}/publish` · `/unpublish` · `/cancel` · `/complete` | director, agency_manager |
 
 Les listes sont paginées (`?page=`, `?per_page=` ≤ 100) et acceptent `?search=` sur le nom.
 
@@ -131,7 +135,8 @@ restent vides dans les fichiers d'exemple.
 | 2      | Authentification, rôles, permissions, policies       | Terminé  |
 | 3      | API organisations et agences                         | Terminé  |
 | 4      | API véhicules, classes, employés et conducteurs      | Terminé  |
-| 5–8    | API trajets, recherche, réservations, paiements      | À faire  |
+| 5      | API itinéraires, trajets et publication              | Terminé  |
+| 6–8    | API recherche, réservations, paiements               | À faire  |
 | 9–11   | Frontend public, espace agence, espace admin         | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
@@ -239,3 +244,28 @@ restent vides dans les fichiers d'exemple.
   conducteur (conservé pour l'historique).
 - **Départ ou suspension** d'un employé, ou **nouveau mot de passe** : ses jetons sont révoqués.
   Le responsable peut réinitialiser le mot de passe d'un employé (pas d'e-mail de réinitialisation en V1).
+
+## Décisions et hypothèses (module 5 — itinéraires, trajets, publication)
+
+- **Fuseau horaire** de l'application : `Africa/Douala` (`APP_TIMEZONE`). Dates et heures de départ,
+  « aujourd'hui » et « départ passé » sont évalués à l'heure du Cameroun.
+- **Itinéraires partagés** entre organisations : les agences les consultent et créent ceux qui manquent ;
+  seul le super_admin modifie durée/distance ou désactive un itinéraire. Les villes d'un itinéraire
+  ne changent jamais (créer un nouvel itinéraire). Un aller et un retour sont deux itinéraires.
+- **Classe du trajet = classe du véhicule**, imposée par l'API (`travel_class_id` n'est jamais saisi).
+- **Véhicule** : de l'agence du trajet, en service, et libre sur l'intervalle départ → arrivée estimée
+  (durée de l'itinéraire, 60 min si inconnue). Vérification sous verrou du véhicule.
+- **Machine d'état** (`TripStatus`) : draft → published | cancelled ; published → draft (sans réservation)
+  | cancelled | completed ; cancelled et completed sont finaux. Refus de transition : **409**.
+  Publication : départ futur, agence/organisation, véhicule et itinéraire actifs.
+- **Trajet réservé** : itinéraire et classe figés, nouveau véhicule de capacité suffisante ; le prix
+  peut changer (le montant des réservations existantes est figé). Changement de date/heure autorisé :
+  la notification des passagers viendra avec les notifications (modules 7–8).
+- **Annulation d'un trajet** : ses réservations en attente/confirmées sont annulées avec lui.
+  Les remboursements relèvent du module 8.
+- **Suppression** : uniquement un brouillon sans réservation ; sinon annulation.
+- **Places restantes** calculées à la volée : capacité du véhicule − places consommées
+  (`Trip::withReservedSeats()`, `remainingSeats()`).
+- **Tâche planifiée** `trips:complete-past` (00:30) : trajets publiés des jours précédents → completed.
+  En production, lancer le planificateur Laravel (`php artisan schedule:run` chaque minute via cron).
+- Pas de création de trajets en série (programme récurrent) en V1 : un trajet par requête.

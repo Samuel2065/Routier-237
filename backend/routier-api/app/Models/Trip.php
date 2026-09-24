@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\TripStatus;
 use App\Models\Concerns\BelongsToAgency;
+use Carbon\CarbonImmutable;
 use Database\Factories\TripFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -74,5 +75,62 @@ class Trip extends Model
         return $query
             ->whereIn($this->qualifyColumn('status'), [TripStatus::Draft, TripStatus::Published])
             ->whereDate($this->qualifyColumn('departure_date'), '>=', today());
+    }
+
+    /**
+     * Ajoute l'attribut reserved_seats : places consommées par les réservations valides (§8).
+     */
+    public function scopeWithReservedSeats(Builder $query): Builder
+    {
+        return $query->withSum(
+            ['reservations as reserved_seats' => fn (Builder $reservations) => $reservations->consumingCapacity()],
+            'passenger_count',
+        );
+    }
+
+    /**
+     * Date et heure de départ (fuseau de l'application, Africa/Douala).
+     */
+    public function departsAt(): CarbonImmutable
+    {
+        return CarbonImmutable::parse($this->departure_date->toDateString().' '.$this->departure_time);
+    }
+
+    /**
+     * Arrivée estimée d'après la durée indicative de l'itinéraire (60 min si inconnue).
+     */
+    public function arrivesAt(): CarbonImmutable
+    {
+        return $this->departsAt()->addMinutes($this->route->estimated_duration_minutes ?? 60);
+    }
+
+    public function hasDeparted(): bool
+    {
+        return $this->departsAt()->lessThanOrEqualTo(now());
+    }
+
+    /**
+     * Capacité réelle : celle du véhicule, jamais une valeur saisie sur le trajet.
+     */
+    public function capacity(): int
+    {
+        return $this->vehicle->capacity;
+    }
+
+    public function reservedSeats(): int
+    {
+        if (array_key_exists('reserved_seats', $this->attributes)) {
+            return (int) $this->attributes['reserved_seats'];
+        }
+
+        return (int) $this->reservations()->consumingCapacity()->sum('passenger_count');
+    }
+
+    /**
+     * Places restantes = capacité du véhicule − passagers réservés valides (§8).
+     */
+    public function remainingSeats(): int
+    {
+        return max(0, $this->capacity() - $this->reservedSeats());
     }
 }

@@ -3,10 +3,12 @@
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
 use App\Http\Controllers\Api\V1\Admin\DirectorController;
 use App\Http\Controllers\Api\V1\Agency\EmployeeController;
+use App\Http\Controllers\Api\V1\Agency\TripController;
 use App\Http\Controllers\Api\V1\Agency\VehicleController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Management\AgencyController;
 use App\Http\Controllers\Api\V1\Management\OrganizationController;
+use App\Http\Controllers\Api\V1\Management\RouteController;
 use App\Http\Controllers\Api\V1\Public\AgencyController as PublicAgencyController;
 use App\Http\Controllers\Api\V1\Public\CityController as PublicCityController;
 use App\Http\Controllers\Api\V1\Public\TravelClassController;
@@ -56,6 +58,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::patch('agencies/{agency}/settings', [AgencyController::class, 'updateSettings'])->name('agencies.settings');
         Route::apiResource('vehicles', VehicleController::class);
         Route::apiResource('employees', EmployeeController::class)->except(['destroy']);
+        Route::apiResource('routes', RouteController::class)->only(['index', 'store'])->parameters(['routes' => 'travelRoute']);
+        Route::apiResource('trips', TripController::class);
+        Route::prefix('trips/{trip}')->name('trips.')->group(function () {
+            Route::post('publish', [TripController::class, 'publish'])->name('publish');
+            Route::post('unpublish', [TripController::class, 'unpublish'])->name('unpublish');
+            Route::post('cancel', [TripController::class, 'cancel'])->name('cancel');
+            Route::post('complete', [TripController::class, 'complete'])->name('complete');
+        });
     });
 
     // Espace administrateur de la plateforme.
@@ -64,5 +74,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('organizations/{organization}/directors', [DirectorController::class, 'store'])->name('organizations.directors.store');
         Route::apiResource('agencies', AgencyController::class)->except(['destroy']);
         Route::apiResource('cities', AdminCityController::class)->only(['store', 'update']);
+        Route::apiResource('routes', RouteController::class)->except(['show', 'destroy'])->parameters(['routes' => 'travelRoute']);
     });
 });

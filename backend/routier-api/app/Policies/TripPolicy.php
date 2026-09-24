@@ -44,6 +44,19 @@ class TripPolicy
         return $this->allowed($user, P::TripsCancel, $trip);
     }
 
+    public function complete(User $user, Trip $trip): bool
+    {
+        return $this->allowed($user, P::TripsUpdate, $trip);
+    }
+
+    /**
+     * Suppression d'un brouillon créé par erreur (règles d'état dans le contrôleur).
+     */
+    public function delete(User $user, Trip $trip): bool
+    {
+        return $this->allowed($user, P::TripsUpdate, $trip);
+    }
+
     private function allowed(User $user, P $permission, Trip $trip): bool
     {
         return $user->checkPermissionTo($permission->value)
