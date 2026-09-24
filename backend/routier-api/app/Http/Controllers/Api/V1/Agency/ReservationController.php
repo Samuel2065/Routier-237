@@ -7,6 +7,7 @@ use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ReservationResource;
 use App\Models\Reservation;
+use App\Notifications\ReservationCancelled;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
@@ -54,7 +55,7 @@ class ReservationController extends Controller
     {
         Gate::authorize('view', $reservation);
 
-        return new ReservationResource($reservation->load([...self::RELATIONS, 'passengers']));
+        return new ReservationResource($reservation->load([...self::RELATIONS, 'passengers', 'payments']));
     }
 
     public function cancel(Reservation $reservation, ChangeReservationStatus $changeStatus): ReservationResource
@@ -62,7 +63,8 @@ class ReservationController extends Controller
         Gate::authorize('cancel', $reservation);
 
         $reservation = $changeStatus->cancel($reservation, byCustomer: false);
+        $reservation->user->notify(new ReservationCancelled($reservation, ReservationCancelled::BY_AGENCY));
 
-        return new ReservationResource($reservation->load([...self::RELATIONS, 'passengers']));
+        return new ReservationResource($reservation->load([...self::RELATIONS, 'passengers', 'payments']));
     }
 }

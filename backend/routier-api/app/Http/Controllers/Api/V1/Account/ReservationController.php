@@ -67,6 +67,6 @@ class ReservationController extends Controller
 
     private function details(Reservation $reservation): Reservation
     {
-        return $reservation->load([...self::RELATIONS, 'passengers']);
+        return $reservation->load([...self::RELATIONS, 'passengers', 'payments']);
     }
 }

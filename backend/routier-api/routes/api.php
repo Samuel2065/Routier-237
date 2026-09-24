@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Account\NotificationController;
+use App\Http\Controllers\Api\V1\Account\PaymentController as AccountPaymentController;
 use App\Http\Controllers\Api\V1\Account\ReservationController as AccountReservationController;
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
 use App\Http\Controllers\Api\V1\Admin\DirectorController;
 use App\Http\Controllers\Api\V1\Agency\EmployeeController;
+use App\Http\Controllers\Api\V1\Agency\PaymentController as AgencyPaymentController;
 use App\Http\Controllers\Api\V1\Agency\ReservationController as AgencyReservationController;
 use App\Http\Controllers\Api\V1\Agency\TripController;
 use App\Http\Controllers\Api\V1\Agency\VehicleController;
@@ -11,6 +14,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Management\AgencyController;
 use App\Http\Controllers\Api\V1\Management\OrganizationController;
 use App\Http\Controllers\Api\V1\Management\RouteController;
+use App\Http\Controllers\Api\V1\PaymentWebhookController;
 use App\Http\Controllers\Api\V1\Public\AgencyController as PublicAgencyController;
 use App\Http\Controllers\Api\V1\Public\CityController as PublicCityController;
 use App\Http\Controllers\Api\V1\Public\TravelClassController;
@@ -48,6 +52,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('trips/{trip}', [PublicTripController::class, 'show'])->whereNumber('trip')->name('trips.show');
     });
 
+    // Notifications des fournisseurs de paiement (authenticité vérifiée par signature).
+    Route::post('payments/webhooks/{provider}', PaymentWebhookController::class)->middleware('throttle:webhooks')->name('payments.webhooks');
+
     // Session courante, quel que soit l'espace.
     Route::middleware(['auth:sanctum', 'space'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
@@ -60,6 +67,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('reservations', [AccountReservationController::class, 'store'])->middleware('throttle:reservations')->name('reservations.store');
         Route::get('reservations/{reservation}', [AccountReservationController::class, 'show'])->name('reservations.show');
         Route::post('reservations/{reservation}/cancel', [AccountReservationController::class, 'cancel'])->name('reservations.cancel');
+        Route::post('reservations/{reservation}/payments', [AccountPaymentController::class, 'store'])->middleware('throttle:reservations')->name('reservations.payments.store');
+        Route::get('payments/{payment}', [AccountPaymentController::class, 'show'])->name('payments.show');
+        Route::post('payments/{payment}/simulate', [AccountPaymentController::class, 'simulate'])->name('payments.simulate');
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+        Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     });
 
     // Espace agence : director et personnel, limités à leur périmètre par les policies.
@@ -74,6 +87,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('reservations', [AgencyReservationController::class, 'index'])->name('reservations.index');
         Route::get('reservations/{reservation}', [AgencyReservationController::class, 'show'])->name('reservations.show');
         Route::post('reservations/{reservation}/cancel', [AgencyReservationController::class, 'cancel'])->name('reservations.cancel');
+        Route::get('payments', [AgencyPaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/{payment}', [AgencyPaymentController::class, 'show'])->name('payments.show');
+        Route::post('payments/{payment}/refund', [AgencyPaymentController::class, 'refund'])->name('payments.refund');
         Route::prefix('trips/{trip}')->name('trips.')->group(function () {
             Route::post('publish', [TripController::class, 'publish'])->name('publish');
             Route::post('unpublish', [TripController::class, 'unpublish'])->name('unpublish');

@@ -54,6 +54,7 @@ class ReservationResource extends JsonResource
                 'email' => $this->user->email,
                 'phone' => $this->user->phone,
             ]),
+            'payments' => PaymentResource::collection($this->whenLoaded('payments')),
             'passengers' => $this->whenLoaded('passengers', fn () => $this->passengers->map(fn ($passenger) => [
                 'id' => $passenger->id,
                 'full_name' => $passenger->full_name,

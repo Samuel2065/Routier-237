@@ -36,5 +36,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Création de réservations : 10 par minute et par client (évite le blocage abusif de places).
         RateLimiter::for('reservations', fn (Request $request) => Limit::perMinute(10)->by('user:'.$request->user()?->id));
+
+        // Webhooks des fournisseurs de paiement : 300 par minute et par IP.
+        RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
     }
 }

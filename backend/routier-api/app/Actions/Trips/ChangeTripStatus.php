@@ -7,6 +7,7 @@ use App\Enums\ReservationStatus;
 use App\Enums\TripStatus;
 use App\Enums\VehicleStatus;
 use App\Models\Trip;
+use App\Notifications\ReservationCancelled;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -64,18 +65,30 @@ class ChangeTripStatus
     }
 
     /**
-     * Les réservations actives d'un trajet annulé sont annulées avec lui.
-     * Remboursements et notifications : modules 7 et 8.
+     * Les réservations actives d'un trajet annulé sont annulées avec lui, et leurs
+     * clients notifiés après validation de la transaction. Les paiements confirmés
+     * apparaissent alors « à rembourser » côté agence.
      */
     private function cancelReservations(Trip $trip): void
     {
-        $trip->reservations()
+        $reservations = $trip->reservations()
+            ->with('user')
             ->whereIn('status', [ReservationStatus::Pending, ReservationStatus::Confirmed])
+            ->get();
+
+        $trip->reservations()
+            ->whereKey($reservations->modelKeys())
             ->update([
                 'status' => ReservationStatus::Cancelled,
                 'cancelled_at' => now(),
                 'updated_at' => now(),
             ]);
+
+        DB::afterCommit(function () use ($reservations) {
+            foreach ($reservations as $reservation) {
+                $reservation->user->notify(new ReservationCancelled($reservation, ReservationCancelled::TRIP_CANCELLED));
+            }
+        });
     }
 
     private function ensure(bool $condition, string $message): void

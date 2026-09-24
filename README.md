@@ -115,6 +115,12 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | public  | `GET trips/{id}` (détail, champ `bookable`), `GET agencies/{id}/trips` | tous          |
 | client  | `GET/POST account/reservations`, `GET account/reservations/{id}`, `POST account/reservations/{id}/cancel` | client (ses réservations) |
 | agence  | `GET agency/reservations` (`?trip_id=&status=&date=&search=`), `GET agency/reservations/{id}`, `POST agency/reservations/{id}/cancel` | director, agency_manager, counter_clerk ; lecture : accountant |
+| client  | `POST account/reservations/{id}/payments` (`method`, `phone` pour le mobile money), `GET account/payments/{id}` | client |
+| client  | `POST account/payments/{id}/simulate` (`outcome=paid\|failed`) — passerelle mock, hors production | client |
+| client  | `GET account/notifications` (`?unread=1`), `POST account/notifications/{id}/read`, `POST account/notifications/read-all` | client |
+| agence  | `GET agency/payments` (`?status=&method=&trip_id=&date_from=&date_to=&requires_refund=1`), `GET agency/payments/{id}` | director, agency_manager, counter_clerk, accountant |
+| agence  | `POST agency/payments/{id}/refund`                         | director, accountant        |
+| public  | `POST payments/webhooks/{provider}` (signature du fournisseur) | fournisseurs de paiement |
 | agence  | `GET/POST agency/vehicles`, `GET/PATCH/DELETE agency/vehicles/{id}` | director, agency_manager ; lecture : driver |
 | agence  | `GET/POST agency/employees`, `GET/PATCH agency/employees/{id}` (`?role=driver` pour les conducteurs) | director, agency_manager |
 | agence  | `GET/POST agency/routes`                                  | director, agency_manager    |
@@ -142,7 +148,7 @@ restent vides dans les fichiers d'exemple.
 | 5      | API itinéraires, trajets et publication              | Terminé  |
 | 6      | API recherche publique                               | Terminé  |
 | 7      | API réservations et passagers (anti-surbooking)      | Terminé  |
-| 8      | API paiements                                        | À faire  |
+| 8      | API paiements et notifications                       | Terminé  |
 | 9–11   | Frontend public, espace agence, espace admin         | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
@@ -317,5 +323,32 @@ restent vides dans les fichiers d'exemple.
 - **Non transférable** : aucun point d'entrée ne modifie le titulaire ni les passagers d'une réservation.
 - **Référence** unique `R237-XXXXXXXX` (sans caractères ambigus 0/O, 1/I), lisible au guichet.
 - **Limitation** : 10 créations de réservation par minute et par client.
-- Les notifications (réservation confirmée, annulée par l'agence, trajet annulé) sont prévues avec
-  le module 8.
+
+## Décisions et hypothèses (module 8 — paiements et notifications)
+
+- **Architecture** (`app/Payments`) : interface `PaymentGateway` (initier, lire un webhook signé,
+  rembourser), une passerelle par moyen (Orange Money, MTN MoMo, carte) et une passerelle simulée.
+  `PAYMENT_DEFAULT_DRIVER=mock` utilise la simulation ; `live` utilise les passerelles réelles.
+- **Aucune intégration réelle inventée** (§10.1) : les passerelles réelles répondent **503**
+  « pas encore disponible » tant qu'elles ne sont pas implémentées avec les contrats et identifiants
+  de production (variables `ORANGE_MONEY_*`, `MTN_MOMO_*`, `CARD_PAYMENT_*`). Rien d'autre à modifier
+  pour les brancher. **La simulation est refusée en production.**
+- **Paiement** : uniquement pour une réservation en attente et non expirée, un seul paiement actif à la
+  fois, montant = montant figé de la réservation, numéro obligatoire pour le mobile money. Si la
+  passerelle refuse, aucun paiement n'est enregistré. Colonnes ajoutées : `provider`, `payer_phone`,
+  `failure_reason`.
+- **Résultat** (webhook signé ou simulation) : idempotent (un paiement finalisé n'est plus modifié) ;
+  montant reçu contrôlé ; paiement confirmé → réservation confirmée ; échec → le client peut réessayer.
+- **Paiement tardif** (réservation expirée ou annulée entre-temps) : le paiement reste « paid » et
+  apparaît `requires_refund` côté agence ; aucune réservation n'est ressuscitée.
+- **Remboursement** : par le comptable ou le director (`payments.refund`), intégral, via la passerelle ;
+  la réservation encore confirmée est annulée. Pas de remboursement automatique à l'annulation par le
+  client ni de frais d'annulation en V1 : les paiements concernés apparaissent « à rembourser ».
+- **Webhook simulé** : `POST /api/v1/payments/webhooks/mock`, en-tête `X-Mock-Signature` =
+  HMAC-SHA256 du corps avec `PAYMENT_MOCK_WEBHOOK_SECRET`. Sans secret configuré, tout webhook est refusé.
+- **Notifications** (table `notifications`, canal base + e-mail) : réservation confirmée, réservation
+  annulée par l'agence ou suite à l'annulation du trajet, paiement échoué (base uniquement).
+  E-mail via `MAIL_MAILER` : `log` en local, `resend` + `RESEND_KEY` en production.
+  Envoi synchrone en V1 ; à passer en file d'attente (`ShouldQueue` + `queue:work`) si le volume l'exige.
+- Pas de rapprochement planifié avec les fournisseurs (vérification des paiements restés « processing »)
+  en V1 : à ajouter avec les intégrations réelles.
