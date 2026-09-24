@@ -30,5 +30,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth', function (Request $request) {
             return Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip());
         });
+
+        // Consultation publique (recherche, agences, trajets) : 120 requêtes par minute et par IP.
+        RateLimiter::for('public', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
     }
 }

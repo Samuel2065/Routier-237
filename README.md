@@ -111,6 +111,8 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | admin   | `GET/POST admin/agencies`, `GET/PATCH admin/agencies/{id}` | super_admin                |
 | admin   | `POST admin/cities`, `PATCH admin/cities/{id}`            | super_admin                 |
 | public  | `GET travel-classes`                                      | tous                        |
+| public  | `GET trips/search?departure_city_id=&destination_city_id=&date=` (+ `passengers`, `travel_class_id`, `sort=departure\|price`) | tous |
+| public  | `GET trips/{id}` (détail, champ `bookable`), `GET agencies/{id}/trips` | tous          |
 | agence  | `GET/POST agency/vehicles`, `GET/PATCH/DELETE agency/vehicles/{id}` | director, agency_manager ; lecture : driver |
 | agence  | `GET/POST agency/employees`, `GET/PATCH agency/employees/{id}` (`?role=driver` pour les conducteurs) | director, agency_manager |
 | agence  | `GET/POST agency/routes`                                  | director, agency_manager    |
@@ -136,7 +138,8 @@ restent vides dans les fichiers d'exemple.
 | 3      | API organisations et agences                         | Terminé  |
 | 4      | API véhicules, classes, employés et conducteurs      | Terminé  |
 | 5      | API itinéraires, trajets et publication              | Terminé  |
-| 6–8    | API recherche, réservations, paiements               | À faire  |
+| 6      | API recherche publique                               | Terminé  |
+| 7–8    | API réservations, paiements                          | À faire  |
 | 9–11   | Frontend public, espace agence, espace admin         | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
@@ -269,3 +272,20 @@ restent vides dans les fichiers d'exemple.
 - **Tâche planifiée** `trips:complete-past` (00:30) : trajets publiés des jours précédents → completed.
   En production, lancer le planificateur Laravel (`php artisan schedule:run` chaque minute via cron).
 - Pas de création de trajets en série (programme récurrent) en V1 : un trajet par requête.
+
+## Décisions et hypothèses (module 6 — recherche publique)
+
+- **Critères de visibilité** (`Trip::publiclyAvailable()`) : trajet publié, départ encore à venir
+  (heure comprise pour le jour même), agence et organisation actives, véhicule en service,
+  itinéraire actif. Un trajet dont le véhicule passe en maintenance disparaît de la recherche
+  jusqu'à réaffectation d'un véhicule.
+- **Disponibilité** filtrée en SQL (`withRemainingSeatsAtLeast`) : capacité du véhicule − places
+  consommées ≥ nombre de passagers demandé (1 par défaut). Les trajets complets n'apparaissent pas ;
+  leur page de détail reste accessible avec `bookable: false`.
+- **Neutralité** (§18.3) : aucun score ni classement ; tri par heure de départ (défaut) ou par prix,
+  toutes agences confondues. Seules des données observables sont exposées.
+- **Données publiques** : ni immatriculation, ni statut interne, ni détail des réservations.
+- Recherche par identifiants de ville (`GET cities`), date jusqu'à 365 jours, 1 à 20 passagers,
+  100 résultats au plus pour un trajet et une date.
+- **Limitation** : endpoints publics limités à 120 requêtes/minute par IP.
+- Pas de suggestion de dates proches ni de correspondances (trajets avec escale) en V1.

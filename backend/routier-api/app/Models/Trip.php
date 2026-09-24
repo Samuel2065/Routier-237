@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\RecordStatus;
 use App\Enums\TripStatus;
+use App\Enums\VehicleStatus;
 use App\Models\Concerns\BelongsToAgency;
 use Carbon\CarbonImmutable;
 use Database\Factories\TripFactory;
@@ -75,6 +77,62 @@ class Trip extends Model
         return $query
             ->whereIn($this->qualifyColumn('status'), [TripStatus::Draft, TripStatus::Published])
             ->whereDate($this->qualifyColumn('departure_date'), '>=', today());
+    }
+
+    /**
+     * Trajets visibles et réservables publiquement (§5.1) : publiés, départ à venir,
+     * agence et organisation actives, véhicule en service, itinéraire actif.
+     */
+    public function scopePubliclyAvailable(Builder $query): Builder
+    {
+        $now = now();
+
+        return $query
+            ->where($this->qualifyColumn('status'), TripStatus::Published)
+            ->whereIn($this->qualifyColumn('agency_id'), Agency::query()->publiclyVisible()->select('agencies.id'))
+            ->whereIn($this->qualifyColumn('vehicle_id'), Vehicle::query()->select('id')->where('status', VehicleStatus::Active))
+            ->whereIn($this->qualifyColumn('route_id'), TravelRoute::query()->select('id')->where('status', RecordStatus::Active))
+            ->where(function (Builder $query) use ($now) {
+                $query->whereDate($this->qualifyColumn('departure_date'), '>', $now->toDateString())
+                    ->orWhere(function (Builder $query) use ($now) {
+                        $query->whereDate($this->qualifyColumn('departure_date'), $now->toDateString())
+                            ->where($this->qualifyColumn('departure_time'), '>', $now->format('H:i:s'));
+                    });
+            });
+    }
+
+    /**
+     * Trajets ayant encore au moins $seats places : capacité du véhicule − places consommées.
+     * Calcul en SQL pour filtrer avant pagination.
+     */
+    public function scopeWithRemainingSeatsAtLeast(Builder $query, int $seats): Builder
+    {
+        $capacity = Vehicle::query()
+            ->select('capacity')
+            ->whereColumn('vehicles.id', $this->qualifyColumn('vehicle_id'));
+
+        $reserved = Reservation::query()
+            ->consumingCapacity()
+            ->selectRaw('COALESCE(SUM(passenger_count), 0)')
+            ->whereColumn('reservations.trip_id', $this->qualifyColumn('id'));
+
+        return $query->whereRaw(
+            '('.$capacity->toSql().') - ('.$reserved->toSql().') >= ?',
+            [...$capacity->getBindings(), ...$reserved->getBindings(), $seats],
+        );
+    }
+
+    /**
+     * Le trajet peut-il recevoir une réservation maintenant ? (contrôle définitif sous verrou au module 7)
+     */
+    public function isBookable(int $seats = 1): bool
+    {
+        return $this->status === TripStatus::Published
+            && ! $this->hasDeparted()
+            && $this->agency->isPubliclyVisible()
+            && $this->vehicle->status === VehicleStatus::Active
+            && $this->route->status === RecordStatus::Active
+            && $this->remainingSeats() >= $seats;
     }
 
     /**

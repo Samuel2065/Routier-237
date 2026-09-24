@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Management\RouteController;
 use App\Http\Controllers\Api\V1\Public\AgencyController as PublicAgencyController;
 use App\Http\Controllers\Api\V1\Public\CityController as PublicCityController;
 use App\Http\Controllers\Api\V1\Public\TravelClassController;
+use App\Http\Controllers\Api\V1\Public\TripController as PublicTripController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,11 +35,16 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('admin/auth/login', [AuthController::class, 'loginAdmin'])->name('admin.auth.login');
     });
 
-    // Consultation publique, sans compte.
-    Route::get('cities', [PublicCityController::class, 'index'])->name('cities.index');
-    Route::get('travel-classes', [TravelClassController::class, 'index'])->name('travel-classes.index');
-    Route::get('agencies', [PublicAgencyController::class, 'index'])->name('agencies.index');
-    Route::get('agencies/{agency}', [PublicAgencyController::class, 'show'])->name('agencies.show');
+    // Consultation publique, sans compte (limitée en fréquence par IP).
+    Route::middleware('throttle:public')->group(function () {
+        Route::get('cities', [PublicCityController::class, 'index'])->name('cities.index');
+        Route::get('travel-classes', [TravelClassController::class, 'index'])->name('travel-classes.index');
+        Route::get('agencies', [PublicAgencyController::class, 'index'])->name('agencies.index');
+        Route::get('agencies/{agency}', [PublicAgencyController::class, 'show'])->name('agencies.show');
+        Route::get('agencies/{agency}/trips', [PublicTripController::class, 'forAgency'])->name('agencies.trips');
+        Route::get('trips/search', [PublicTripController::class, 'search'])->name('trips.search');
+        Route::get('trips/{trip}', [PublicTripController::class, 'show'])->whereNumber('trip')->name('trips.show');
+    });
 
     // Session courante, quel que soit l'espace.
     Route::middleware(['auth:sanctum', 'space'])->group(function () {
