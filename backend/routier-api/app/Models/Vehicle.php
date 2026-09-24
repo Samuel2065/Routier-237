@@ -48,4 +48,21 @@ class Vehicle extends Model
     {
         return $this->hasMany(Trip::class);
     }
+
+    /**
+     * Plus grand nombre de places consommées sur un trajet à venir de ce véhicule :
+     * la capacité ne peut pas descendre en dessous.
+     */
+    public function maxReservedSeatsOnUpcomingTrips(): int
+    {
+        $busiestTrip = Reservation::query()
+            ->consumingCapacity()
+            ->whereIn('trip_id', $this->trips()->upcoming()->select('trips.id'))
+            ->selectRaw('trip_id, SUM(passenger_count) AS seats')
+            ->groupBy('trip_id')
+            ->orderByDesc('seats')
+            ->first();
+
+        return (int) ($busiestTrip?->seats ?? 0);
+    }
 }

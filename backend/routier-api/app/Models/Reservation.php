@@ -56,6 +56,24 @@ class Reservation extends Model
     }
 
     /**
+     * Réservations qui consomment de la capacité (cahier des charges §8) : les confirmées,
+     * et les réservations en attente tant que leur délai de validité n'est pas dépassé.
+     */
+    public function scopeConsumingCapacity(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->where($this->qualifyColumn('status'), ReservationStatus::Confirmed)
+                ->orWhere(function (Builder $query) {
+                    $query->where($this->qualifyColumn('status'), ReservationStatus::Pending)
+                        ->where(function (Builder $query) {
+                            $query->whereNull($this->qualifyColumn('expires_at'))
+                                ->orWhere($this->qualifyColumn('expires_at'), '>', now());
+                        });
+                });
+        });
+    }
+
+    /**
      * Client : ses propres réservations. Personnel : celles des trajets de ses agences.
      */
     public function scopeAccessibleBy(Builder $query, User $user): Builder

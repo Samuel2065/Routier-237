@@ -110,6 +110,9 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | admin   | `POST admin/organizations/{id}/directors`                 | super_admin                 |
 | admin   | `GET/POST admin/agencies`, `GET/PATCH admin/agencies/{id}` | super_admin                |
 | admin   | `POST admin/cities`, `PATCH admin/cities/{id}`            | super_admin                 |
+| public  | `GET travel-classes`                                      | tous                        |
+| agence  | `GET/POST agency/vehicles`, `GET/PATCH/DELETE agency/vehicles/{id}` | director, agency_manager ; lecture : driver |
+| agence  | `GET/POST agency/employees`, `GET/PATCH agency/employees/{id}` (`?role=driver` pour les conducteurs) | director, agency_manager |
 
 Les listes sont paginées (`?page=`, `?per_page=` ≤ 100) et acceptent `?search=` sur le nom.
 
@@ -127,7 +130,8 @@ restent vides dans les fichiers d'exemple.
 | 1      | Migrations, modèles, relations, seeders              | Terminé  |
 | 2      | Authentification, rôles, permissions, policies       | Terminé  |
 | 3      | API organisations et agences                         | Terminé  |
-| 4–8    | API véhicules, trajets, recherche, réservations, paiements | À faire |
+| 4      | API véhicules, classes, employés et conducteurs      | Terminé  |
+| 5–8    | API trajets, recherche, réservations, paiements      | À faire  |
 | 9–11   | Frontend public, espace agence, espace admin         | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
@@ -212,3 +216,26 @@ restent vides dans les fichiers d'exemple.
 - **Villes** : lecture publique ; création/renommage par le super_admin (permission `cities.manage`).
 - Accès refusé à une ressource d'une autre agence : **403** (le cahier des charges demande un refus
   explicite côté API).
+
+## Décisions et hypothèses (module 4 — véhicules, classes, personnel)
+
+- **Classes de voyage** en lecture seule (VIP, Classique, créées par seeder) : pas d'écran de gestion
+  en V1, le référentiel évolue rarement.
+- **Agence cible** d'une création : le personnel d'agence crée dans sa propre agence ; un director
+  (plusieurs agences) doit préciser `agency_id`, dont l'accès est vérifié par la policy.
+- **Cohérence véhicule / trajets** : la classe d'un véhicule ne change pas s'il a des trajets à
+  venir (la classe d'un trajet est celle de son véhicule) ; sa capacité ne descend pas sous le
+  nombre de places déjà réservées sur un trajet à venir. La vérification verrouille le véhicule et
+  ses trajets à venir (même verrou que les réservations du module 7).
+- **Places consommées** (`Reservation::consumingCapacity()`) : réservations confirmées + réservations
+  en attente non expirées (§8). Ce scope servira au calcul de disponibilité du module 7.
+- **Suppression d'un véhicule** uniquement s'il n'a jamais servi (sinon 409) ; un véhicule en service
+  passe au statut `retired`. Pas de transfert de véhicule ni d'employé entre agences en V1.
+- **Personnel** : création du compte + profil employé (+ profil conducteur) en une transaction.
+  Rôle limité aux rôles attribuables par l'auteur. Matricule unique par agence, permis unique.
+- **Conducteurs** = employés au rôle `driver` avec un permis valide (date future). Le cahier des
+  charges ne prévoit pas de conducteur sur un trajet : aucune affectation conducteur ↔ trajet en V1.
+- **Changement de rôle** : devenir `driver` exige un permis ; quitter ce rôle désactive le profil
+  conducteur (conservé pour l'historique).
+- **Départ ou suspension** d'un employé, ou **nouveau mot de passe** : ses jetons sont révoqués.
+  Le responsable peut réinitialiser le mot de passe d'un employé (pas d'e-mail de réinitialisation en V1).

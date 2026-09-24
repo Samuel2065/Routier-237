@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
 use App\Http\Controllers\Api\V1\Admin\DirectorController;
+use App\Http\Controllers\Api\V1\Agency\EmployeeController;
+use App\Http\Controllers\Api\V1\Agency\VehicleController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Management\AgencyController;
 use App\Http\Controllers\Api\V1\Management\OrganizationController;
 use App\Http\Controllers\Api\V1\Public\AgencyController as PublicAgencyController;
 use App\Http\Controllers\Api\V1\Public\CityController as PublicCityController;
+use App\Http\Controllers\Api\V1\Public\TravelClassController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -31,6 +34,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     // Consultation publique, sans compte.
     Route::get('cities', [PublicCityController::class, 'index'])->name('cities.index');
+    Route::get('travel-classes', [TravelClassController::class, 'index'])->name('travel-classes.index');
     Route::get('agencies', [PublicAgencyController::class, 'index'])->name('agencies.index');
     Route::get('agencies/{agency}', [PublicAgencyController::class, 'show'])->name('agencies.show');
 
@@ -50,6 +54,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('organizations', OrganizationController::class)->only(['show', 'update']);
         Route::apiResource('agencies', AgencyController::class)->except(['destroy']);
         Route::patch('agencies/{agency}/settings', [AgencyController::class, 'updateSettings'])->name('agencies.settings');
+        Route::apiResource('vehicles', VehicleController::class);
+        Route::apiResource('employees', EmployeeController::class)->except(['destroy']);
     });
 
     // Espace administrateur de la plateforme.

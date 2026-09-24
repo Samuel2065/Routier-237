@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\TripStatus;
 use App\Models\Concerns\BelongsToAgency;
 use Database\Factories\TripFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -63,5 +64,15 @@ class Trip extends Model
     public function reservations(): HasMany
     {
         return $this->hasMany(Reservation::class);
+    }
+
+    /**
+     * Trajets à venir encore exploitables (brouillon ou publié, date du jour ou future).
+     */
+    public function scopeUpcoming(Builder $query): Builder
+    {
+        return $query
+            ->whereIn($this->qualifyColumn('status'), [TripStatus::Draft, TripStatus::Published])
+            ->whereDate($this->qualifyColumn('departure_date'), '>=', today());
     }
 }
