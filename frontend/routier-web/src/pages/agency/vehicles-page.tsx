@@ -44,7 +44,9 @@ export function AgencyVehiclesPage() {
   const deleteVehicle = useDeleteVehicle()
 
   const [editing, setEditing] = useState<Vehicle | undefined>()
-  const [formOpen, setFormOpen] = useState(false)
+  // Ouverture directe du formulaire d'ajout (lien « Ajouter un véhicule » du formulaire de trajet).
+  const [formOpen, setFormOpen] = useState(() => filters.get('new') === '1' && can('vehicles.create'))
+  const [defaultAgencyId] = useState(() => (filters.get('new') === '1' ? filters.getNumber('agency_id') : undefined))
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
   const openForm = (vehicle?: Vehicle) => {
@@ -190,7 +192,15 @@ export function AgencyVehiclesPage() {
         </div>
       )}
 
-      <VehicleFormSheet open={formOpen} onOpenChange={setFormOpen} vehicle={editing} />
+      <VehicleFormSheet
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open)
+          if (!open && filters.get('new')) filters.set('new', undefined)
+        }}
+        vehicle={editing}
+        defaultAgencyId={editing ? undefined : defaultAgencyId}
+      />
       <ConfirmDialog request={confirm} pending={deleteVehicle.isPending} onClose={() => setConfirm(null)} />
     </div>
   )

@@ -37,11 +37,22 @@ type VehicleFormValues = z.infer<typeof vehicleSchema>
 
 const STATUSES: VehicleStatus[] = ['active', 'maintenance', 'retired']
 
-export function VehicleFormSheet({ open, onOpenChange, vehicle }: { open: boolean; onOpenChange: (open: boolean) => void; vehicle?: Vehicle }) {
+export function VehicleFormSheet({
+  open,
+  onOpenChange,
+  vehicle,
+  defaultAgencyId,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  vehicle?: Vehicle
+  /** Agence présélectionnée (director, création depuis le formulaire de trajet). */
+  defaultAgencyId?: number
+}) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        {open && <VehicleForm key={vehicle?.id ?? 'new'} vehicle={vehicle} onDone={() => onOpenChange(false)} />}
+        {open && <VehicleForm key={vehicle?.id ?? 'new'} vehicle={vehicle} defaultAgencyId={defaultAgencyId} onDone={() => onOpenChange(false)} />}
       </SheetContent>
     </Sheet>
   )
@@ -50,7 +61,7 @@ export function VehicleFormSheet({ open, onOpenChange, vehicle }: { open: boolea
 /**
  * Fiche véhicule : sa classe et sa capacité réelle déterminent celles de ses trajets.
  */
-function VehicleForm({ vehicle, onDone }: { vehicle?: Vehicle; onDone: () => void }) {
+function VehicleForm({ vehicle, defaultAgencyId, onDone }: { vehicle?: Vehicle; defaultAgencyId?: number; onDone: () => void }) {
   const multiAgency = useIsMultiAgency()
   const travelClasses = useTravelClasses()
   const saveVehicle = useSaveVehicle()
@@ -74,7 +85,7 @@ function VehicleForm({ vehicle, onDone }: { vehicle?: Vehicle; onDone: () => voi
           amenities: vehicle.amenities.join(', '),
           status: vehicle.status,
         }
-      : { amenities: '', status: 'active' },
+      : { agency_id: defaultAgencyId, amenities: '', status: 'active' },
   })
 
   const onSubmit = handleSubmit((values) => {

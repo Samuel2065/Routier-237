@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2, Plus } from 'lucide-react'
+import { Bus, Loader2, Plus } from 'lucide-react'
+import { Link } from 'react-router'
 import { useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { FormField } from '@/components/common/form-field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -87,6 +88,8 @@ function TripForm({ trip, onDone }: { trip?: ManagedTrip; onDone: () => void }) 
   const vehicleAgency = editing ? trip.agency.id : agencyId
   const vehicles = useVehicles({ agency_id: vehicleAgency, status: 'active', per_page: 100 }, !multiAgency || !!vehicleAgency)
   const selectedVehicle = vehicles.data?.data.find((vehicle) => vehicle.id === vehicleId)
+  const needsAgencyFirst = multiAgency && !vehicleAgency
+  const noVehicle = !needsAgencyFirst && vehicles.isSuccess && vehicles.data.data.length === 0
 
   const onSubmit = handleSubmit((values) => {
     if (!editing && multiAgency && !values.agency_id) {
@@ -198,10 +201,25 @@ function TripForm({ trip, onDone }: { trip?: ManagedTrip; onDone: () => void }) 
                 <Select
                   value={field.value ? String(field.value) : ''}
                   onValueChange={(value) => field.onChange(Number(value))}
-                  disabled={multiAgency && !vehicleAgency}
+                  disabled={needsAgencyFirst || noVehicle || vehicles.isPending}
                 >
-                  <SelectTrigger id="trip-vehicle" className="w-full" aria-invalid={!!errors.vehicle_id || undefined}>
-                    <SelectValue placeholder={multiAgency && !vehicleAgency ? "Choisissez d'abord l'agence" : 'Choisir un véhicule'} />
+                  <SelectTrigger
+                    id="trip-vehicle"
+                    className="w-full"
+                    aria-invalid={!!errors.vehicle_id || undefined}
+                    aria-describedby={noVehicle ? 'trip-vehicle-empty' : undefined}
+                  >
+                    <SelectValue
+                      placeholder={
+                        needsAgencyFirst
+                          ? "Choisissez d'abord l'agence"
+                          : vehicles.isPending
+                            ? 'Chargement des véhicules…'
+                            : noVehicle
+                              ? 'Aucun véhicule en service'
+                              : 'Choisir un véhicule'
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {vehicles.data?.data.map((vehicle) => (
@@ -214,6 +232,33 @@ function TripForm({ trip, onDone }: { trip?: ManagedTrip; onDone: () => void }) 
               )}
             />
           </FormField>
+          {vehicles.isError && (
+            <p role="alert" className="-mt-2 text-xs text-destructive">
+              Impossible de charger les véhicules.{' '}
+              <button type="button" className="underline" onClick={() => vehicles.refetch()}>
+                Réessayer
+              </button>
+            </p>
+          )}
+          {noVehicle && (
+            <Alert id="trip-vehicle-empty" className="-mt-2">
+              <Bus aria-hidden="true" />
+              <AlertTitle>Aucun véhicule en service dans cette agence</AlertTitle>
+              <AlertDescription className="grid gap-2">
+                <span>Un trajet prend la classe (VIP ou Classique) et la capacité d'un véhicule : ajoutez d'abord un véhicule à cette agence.</span>
+                {can('vehicles.create') ? (
+                  <Button asChild size="sm" variant="outline" className="w-fit">
+                    <Link to={`/agency/vehicles?new=1${vehicleAgency ? `&agency_id=${vehicleAgency}` : ''}`} onClick={onDone}>
+                      <Plus aria-hidden="true" />
+                      Ajouter un véhicule
+                    </Link>
+                  </Button>
+                ) : (
+                  <span>Demandez au responsable de l'agence d'enregistrer un véhicule.</span>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
           {selectedVehicle && (
             <p className="-mt-2 text-xs text-muted-foreground">
               Classe du trajet : <strong>{selectedVehicle.travel_class?.name}</strong> — {selectedVehicle.brand} {selectedVehicle.model},{' '}
