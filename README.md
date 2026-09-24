@@ -18,8 +18,8 @@ et tous les contrôles d'autorisation sont faits par l'API Laravel.
 
 | Dossier                 | Stack                                              |
 |-------------------------|----------------------------------------------------|
-| `backend/routier-api`   | Laravel 12, PHP 8.2+, MySQL (Sanctum et Spatie Permission : module 2) |
-| `frontend/routier-web`  | React 19, TypeScript, Vite, ESLint (Tailwind, shadcn/ui, Router, Query, Zustand, RHF, Zod : module 9) |
+| `backend/routier-api`   | Laravel 12, PHP 8.2+, MySQL, Sanctum, Spatie Permission |
+| `frontend/routier-web`  | React 19, TypeScript, Vite, Tailwind CSS 4, shadcn/ui (icônes Lucide), React Router 7, Axios, TanStack Query, Zustand, React Hook Form, Zod, Vitest, ESLint |
 
 ## Prérequis
 
@@ -70,11 +70,21 @@ dont un annulé ; J+8 à J+10 : brouillons).
 ```bash
 cd frontend/routier-web
 npm install
-cp .env.example .env
-npm run dev                  # http://localhost:5173
+cp .env.example .env         # VITE_API_URL=http://localhost:8000
+npm run dev                  # http://localhost:5173 (l'API doit tourner : php artisan serve)
 npm run lint
-npm run build
+npm test                     # Vitest (formulaires critiques, règles de saisie, formatage)
+npm run build                # build de production dans dist/
 ```
+
+Parcours à essayer : rechercher Bertoua → Yaoundé pour demain, choisir un trajet, se connecter avec
+`client@routier237.test` / `password`, saisir les passagers, puis payer. Avec la passerelle simulée,
+les boutons « Simuler un paiement réussi / un échec » apparaissent sur la page de la réservation.
+
+Structure (`src/`) : `api/` (appels HTTP par domaine), `components/ui` (shadcn), `components/common`
+et `components/layout`, `features/*` (auth, trips, agencies, reservations, payments, notifications :
+formulaires, schémas Zod, hooks TanStack Query), `pages/`, `routes/`, `store/` (sessions Zustand),
+`lib/` (erreurs API, formatage, validation), `types/` (réponses de l'API).
 
 ## Authentification API
 
@@ -149,7 +159,8 @@ restent vides dans les fichiers d'exemple.
 | 6      | API recherche publique                               | Terminé  |
 | 7      | API réservations et passagers (anti-surbooking)      | Terminé  |
 | 8      | API paiements et notifications                       | Terminé  |
-| 9–11   | Frontend public, espace agence, espace admin         | À faire  |
+| 9      | Frontend public et espace client                     | Terminé  |
+| 10–11  | Frontend espace agence, espace admin                 | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
 ## Décisions et hypothèses (module 0)
@@ -352,3 +363,31 @@ restent vides dans les fichiers d'exemple.
   Envoi synchrone en V1 ; à passer en file d'attente (`ShouldQueue` + `queue:work`) si le volume l'exige.
 - Pas de rapprochement planifié avec les fournisseurs (vérification des paiements restés « processing »)
   en V1 : à ajouter avec les intégrations réelles.
+
+## Décisions et hypothèses (module 9 — frontend public et espace client)
+
+- **Pages** (§13.1) : `/`, `/search`, `/trips/:id`, `/agencies/:id`, `/booking/:id`, `/login`,
+  `/register`, `/account`, `/account/reservations` et `/account/reservations/:id` (détail, paiement,
+  annulation). Les espaces agence et administrateur arrivent aux modules 10 et 11.
+- **Parcours de réservation** (§5.2) : la recherche et le détail sont accessibles sans compte ; la
+  connexion n'est demandée qu'à l'étape des passagers, avec retour automatique sur la réservation.
+  Après création, le client arrive sur la page de sa réservation pour payer (compte à rebours du délai
+  de paiement, suivi du paiement par interrogation de l'API toutes les 3 s).
+- **Critères de recherche dans l'URL** : une recherche est partageable et survit au rechargement.
+  Tri (heure, prix) et filtre de classe uniquement : aucun classement subjectif (§18.3).
+- **Sessions** (Zustand persisté dans `localStorage`) : une session par espace (client, agence, admin),
+  un client HTTP par espace. Un 401 (ou un compte désactivé) ferme la session locale. Les gardes de
+  routes ne sont qu'un confort : l'API reste seule juge des droits.
+- **Validation** : Zod côté interface (règles alignées sur l'API) pour un retour immédiat ; les erreurs
+  422 de Laravel sont reportées sous les champs, les refus métier (409, 503) affichés tels quels.
+  Messages de validation de l'API traduits en français (`lang/fr/validation.php`).
+- **Redirection après connexion** limitée aux chemins internes (pas de redirection ouverte).
+- **Accessibilité** : libellés associés, erreurs reliées aux champs (`aria-describedby`, `role="alert"`),
+  lien d'évitement, navigation clavier des composants Radix, états de chargement/vide/erreur explicites.
+- **Affichage** : dates et heures au fuseau Africa/Douala, montants en FCFA, thème clair uniquement,
+  icônes Lucide, pages chargées à la demande (connexions mobiles).
+- **Tests frontend** (Vitest + Testing Library) : formulaire de réservation (passagers, enfants, limite
+  de places, refus 409), formulaire de connexion (session, erreurs 422), schémas de recherche et de
+  réservation, formatage, erreurs d'API, redirections sûres.
+- Le bundle initial (~155 Ko compressés) reste signalé au-dessus de 500 Ko non compressés par Vite
+  (React, routeur, requêtes, composants) : avertissement non bloquant, à optimiser au module 12 si besoin.
