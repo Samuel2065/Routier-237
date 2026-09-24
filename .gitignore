@@ -1,0 +1,10 @@
+# Environnements locaux (chaque application a aussi son propre .gitignore)
+.env
+.env.*
+!.env.example
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
