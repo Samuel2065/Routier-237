@@ -32,4 +32,12 @@ class OrganizationPolicy
         return $user->checkPermissionTo(P::OrganizationsUpdate->value)
             && $user->canAccessOrganization($organization);
     }
+
+    /**
+     * Seul le super_admin crée le compte director d'une organisation (§6.1).
+     */
+    public function createDirector(User $user, Organization $organization): bool
+    {
+        return $user->isSuperAdmin() && $user->checkPermissionTo(P::OrganizationsUpdate->value);
+    }
 }

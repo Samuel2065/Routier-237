@@ -97,6 +97,22 @@ Les routes privées sont regroupées sous `/api/v1/account/*` (client), `/api/v1
 (agence) et `/api/v1/admin/*` (administrateur). Le middleware `space` y vérifie l'espace
 du jeton et que le compte est toujours actif. Les policies vérifient permission et périmètre.
 
+## Endpoints disponibles
+
+| Espace  | Méthode et URL (préfixe `/api/v1`)                        | Qui                         |
+|---------|-----------------------------------------------------------|-----------------------------|
+| public  | `GET cities`                                              | tous                        |
+| public  | `GET agencies?city_id=&search=`, `GET agencies/{id}`      | tous (agences actives)      |
+| agence  | `GET/PATCH agency/organizations/{id}`                     | director (son organisation) |
+| agence  | `GET/POST agency/agencies`, `GET/PATCH agency/agencies/{id}` | director (ses agences) ; lecture : responsable d'agence |
+| agence  | `PATCH agency/agencies/{id}/settings`                     | director, agency_manager    |
+| admin   | `GET/POST admin/organizations`, `GET/PATCH admin/organizations/{id}` | super_admin      |
+| admin   | `POST admin/organizations/{id}/directors`                 | super_admin                 |
+| admin   | `GET/POST admin/agencies`, `GET/PATCH admin/agencies/{id}` | super_admin                |
+| admin   | `POST admin/cities`, `PATCH admin/cities/{id}`            | super_admin                 |
+
+Les listes sont paginées (`?page=`, `?per_page=` ≤ 100) et acceptent `?search=` sur le nom.
+
 ## Variables d'environnement
 
 Voir `backend/routier-api/.env.example` (bloc « Routier+237 ») et `frontend/routier-web/.env.example`.
@@ -110,7 +126,8 @@ restent vides dans les fichiers d'exemple.
 | 0      | Audit et préparation de l'environnement              | Terminé  |
 | 1      | Migrations, modèles, relations, seeders              | Terminé  |
 | 2      | Authentification, rôles, permissions, policies       | Terminé  |
-| 3–8    | API organisations, véhicules, trajets, recherche, réservations, paiements | À faire |
+| 3      | API organisations et agences                         | Terminé  |
+| 4–8    | API véhicules, trajets, recherche, réservations, paiements | À faire |
 | 9–11   | Frontend public, espace agence, espace admin         | À faire  |
 | 12     | Tests, sécurité, build final                         | À faire  |
 
@@ -174,3 +191,24 @@ restent vides dans les fichiers d'exemple.
   La traduction complète des messages de validation est à décider avec le frontend (module 9).
 - Pas de réinitialisation de mot de passe ni de vérification d'e-mail en V1 : non exigées par le
   cahier des charges, à ajouter si besoin.
+
+## Décisions et hypothèses (module 3 — organisations et agences)
+
+- **Contrôleurs partagés** entre espaces admin et agence (`Controllers/Api/V1/Management`) :
+  la même logique sert le super_admin (toutes les organisations) et le director (la sienne),
+  le périmètre étant appliqué par `accessibleBy()` et les policies. Pas de duplication de règles.
+- **Autorisation avant validation** : les Form Requests appellent la policy dans `authorize()`,
+  un utilisateur non autorisé reçoit 403 sans apprendre quoi que ce soit des règles de validation.
+- **Pas de suppression** d'organisation, d'agence ou de ville : désactivation par `status`.
+  Suspendre une organisation ou une agence coupe immédiatement l'accès de son personnel et
+  la retire de l'espace public.
+- **Création d'un director** par le super_admin avec un mot de passe initial transmis hors
+  plateforme (pas encore d'e-mail d'invitation). La gestion du personnel d'agence (employés,
+  conducteurs) arrive au module 4.
+- **Paramètres d'agence** (`/settings`) : le responsable d'agence ne modifie que coordonnées et
+  description. Nom, ville et statut relèvent du director.
+- **Profil public d'agence** : informations de présentation uniquement ; une agence inactive ou
+  d'une organisation suspendue répond 404. Ses trajets publiés seront ajoutés au module 6.
+- **Villes** : lecture publique ; création/renommage par le super_admin (permission `cities.manage`).
+- Accès refusé à une ressource d'une autre agence : **403** (le cahier des charges demande un refus
+  explicite côté API).

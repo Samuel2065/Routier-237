@@ -12,6 +12,8 @@ enum PermissionName: string
 {
     case DashboardView = 'dashboard.view';
 
+    case CitiesManage = 'cities.manage';
+
     case OrganizationsView = 'organizations.view';
     case OrganizationsCreate = 'organizations.create';
     case OrganizationsUpdate = 'organizations.update';

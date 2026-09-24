@@ -1,16 +1,17 @@
 <?php
 
-namespace App\Http\Requests\Auth;
+namespace App\Http\Requests\Organizations;
 
 use App\Support\Phone;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rules\Password;
 
-class RegisterRequest extends FormRequest
+class StoreDirectorRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return Gate::allows('createDirector', $this->route('organization'));
     }
 
     /**
@@ -22,8 +23,8 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'regex:'.Phone::REGEX, 'unique:users,phone'],
-            'password' => ['required', 'string', 'confirmed', Password::defaults()],
-            'device_name' => ['nullable', 'string', 'max:100'],
+            // Mot de passe initial, transmis au directeur hors plateforme.
+            'password' => ['required', 'string', Password::defaults()],
         ];
     }
 

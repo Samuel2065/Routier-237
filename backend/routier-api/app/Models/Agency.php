@@ -61,6 +61,25 @@ class Agency extends Model
     }
 
     /**
+     * Agences visibles dans l'espace public : agence active d'une organisation active.
+     */
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return $query
+            ->where($this->qualifyColumn('status'), RecordStatus::Active)
+            ->whereIn(
+                $this->qualifyColumn('organization_id'),
+                Organization::query()->select('id')->where('status', RecordStatus::Active),
+            );
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        return $this->status === RecordStatus::Active
+            && $this->organization->status === RecordStatus::Active;
+    }
+
+    /**
      * Agences gérables par l'utilisateur (isolation inter-agences).
      */
     public function scopeAccessibleBy(Builder $query, User $user): Builder
