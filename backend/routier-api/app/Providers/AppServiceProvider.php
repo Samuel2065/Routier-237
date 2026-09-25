@@ -39,5 +39,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Webhooks des fournisseurs de paiement : 300 par minute et par IP.
         RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
+
+        // Espaces authentifiés : 300 requêtes par minute et par utilisateur.
+        RateLimiter::for('authenticated', fn (Request $request) => Limit::perMinute(300)->by('user:'.($request->user()?->id ?? $request->ip())));
     }
 }

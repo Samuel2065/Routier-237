@@ -59,13 +59,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::post('payments/webhooks/{provider}', PaymentWebhookController::class)->middleware('throttle:webhooks')->name('payments.webhooks');
 
     // Session courante, quel que soit l'espace.
-    Route::middleware(['auth:sanctum', 'space'])->group(function () {
+    Route::middleware(['auth:sanctum', 'space', 'throttle:authenticated'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
     });
 
     // Espace client.
-    Route::middleware(['auth:sanctum', 'space:customer'])->prefix('account')->name('account.')->group(function () {
+    Route::middleware(['auth:sanctum', 'space:customer', 'throttle:authenticated'])->prefix('account')->name('account.')->group(function () {
         Route::get('reservations', [AccountReservationController::class, 'index'])->name('reservations.index');
         Route::post('reservations', [AccountReservationController::class, 'store'])->middleware('throttle:reservations')->name('reservations.store');
         Route::get('reservations/{reservation}', [AccountReservationController::class, 'show'])->name('reservations.show');
@@ -79,7 +79,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     });
 
     // Espace agence : director et personnel, limités à leur périmètre par les policies.
-    Route::middleware(['auth:sanctum', 'space:agency'])->prefix('agency')->name('agency.')->group(function () {
+    Route::middleware(['auth:sanctum', 'space:agency', 'throttle:authenticated'])->prefix('agency')->name('agency.')->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::apiResource('organizations', OrganizationController::class)->only(['show', 'update']);
         Route::apiResource('agencies', AgencyController::class)->except(['destroy']);
@@ -103,7 +103,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     });
 
     // Espace administrateur de la plateforme.
-    Route::middleware(['auth:sanctum', 'space:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['auth:sanctum', 'space:admin', 'throttle:authenticated'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('dashboard', AdminDashboardController::class)->name('dashboard');
         Route::apiResource('users', AdminUserController::class)->only(['index', 'show', 'update']);
         Route::apiResource('organizations', OrganizationController::class)->except(['destroy']);

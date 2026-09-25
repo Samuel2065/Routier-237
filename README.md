@@ -132,7 +132,7 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | client  | `POST account/payments/{id}/simulate` (`outcome=paid\|failed`) — passerelle mock, hors production | client |
 | client  | `GET account/notifications` (`?unread=1`), `POST account/notifications/{id}/read`, `POST account/notifications/read-all` | client |
 | agence  | `GET agency/payments` (`?status=&method=&trip_id=&date_from=&date_to=&requires_refund=1`), `GET agency/payments/{id}` | director, agency_manager, counter_clerk, accountant |
-| agence  | `POST agency/payments/{id}/refund`                         | director, accountant        |
+| agence  | `POST agency/payments/{id}/refund`                         | accountant (`payments.refund`) |
 | public  | `POST payments/webhooks/{provider}` (signature du fournisseur) | fournisseurs de paiement |
 | agence  | `GET/POST agency/vehicles`, `GET/PATCH/DELETE agency/vehicles/{id}` | director, agency_manager ; lecture : driver |
 | agence  | `GET/POST agency/employees`, `GET/PATCH agency/employees/{id}` (`?role=driver` pour les conducteurs) | director, agency_manager |
@@ -148,6 +148,53 @@ Les listes sont paginées (`?page=`, `?per_page=` ≤ 100) et acceptent `?search
 Voir `backend/routier-api/.env.example` (bloc « Routier+237 ») et `frontend/routier-web/.env.example`.
 Aucun secret réel ne doit être commité : les clés Resend et des fournisseurs de paiement
 restent vides dans les fichiers d'exemple.
+
+## Mise en production
+
+Frontend et API se déploient séparément (§23).
+
+**API** (`backend/routier-api`) :
+
+```bash
+composer install --no-dev --optimize-autoloader
+cp .env.example .env           # puis renseigner : APP_ENV=production, APP_DEBUG=false, APP_URL (https),
+                               # DB_*, FRONTEND_URL (https), MAIL_MAILER=resend + RESEND_KEY,
+                               # PAYMENT_DEFAULT_DRIVER=live + identifiants des fournisseurs
+php artisan key:generate
+php artisan routier:check-production   # code de sortie 1 si un point bloquant est détecté
+php artisan migrate --force
+php artisan db:seed --force   # villes, classes VIP/Classique, rôles et permissions
+                               # (DemoSeeder est ignoré quand APP_ENV=production)
+php artisan config:cache && php artisan route:cache
+```
+
+Ne jamais lancer `DemoSeeder` ni `migrate:fresh` en production. Planificateur à activer
+(cron chaque minute : `php artisan schedule:run`) pour l'expiration des réservations en attente,
+la clôture des trajets passés et la purge des jetons. Le premier super_admin se crée en console
+(`php artisan tinker`), aucun compte n'étant livré avec le code.
+
+**Frontend** (`frontend/routier-web`) : `npm ci`, `VITE_API_URL=https://<api>` dans `.env`,
+`npm run build`, puis servir `dist/` comme application monopage (toutes les routes renvoient
+`index.html`).
+
+**Vérifications** : `php artisan test` (sur une base de test dédiée), `npm run lint`, `npm test`,
+puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
+
+## Critères d'acceptation (§25)
+
+| ID  | Vérifié par                                                                                  |
+|-----|----------------------------------------------------------------------------------------------|
+| A1–A3 | `AcceptanceJourneyTest`, `PublicTripSearchTest`                                           |
+| A4  | `AcceptanceJourneyTest`, `TripManagementTest` (classe et capacité issues du véhicule)       |
+| A5, A7 | `AcceptanceJourneyTest`, `CustomerReservationTest` ; aucune colonne de siège (module 1)  |
+| A6  | `AcceptanceJourneyTest`, `ConcurrentBookingTest` (8 processus simultanés sur 5 places)      |
+| A8  | `AcceptanceJourneyTest`, `PaymentFlowTest`, `PaymentWebhookTest`                            |
+| A9  | `AcceptanceJourneyTest`, `CustomerReservationTest`                                          |
+| A10 | `AcceptanceJourneyTest`, tests d'isolation de chaque module (`*ManagementTest`, `AgencyReservationTest`, `AgencyPaymentTest`) |
+| A11 | `AcceptanceJourneyTest`, `AuthorizationTest`, `SpaceSeparationTest`, `tests/Unit/RolePermissionMatrixTest` |
+| A12 | `migrate:fresh --seed` sur base vierge, `SeederTest`, suite complète `php artisan test`      |
+| A13 | `npm run build` (vérification TypeScript `tsc -b` + Vite)                                   |
+| A14 | fichiers `.env` ignorés par Git, `.env.example` sans valeur secrète, historique Git vérifié  |
 
 ## Avancement par modules
 
@@ -165,7 +212,7 @@ restent vides dans les fichiers d'exemple.
 | 9      | Frontend public et espace client                     | Terminé  |
 | 10     | Frontend espace agence (+ tableau de bord API)       | Terminé  |
 | 11     | Frontend espace administrateur (+ supervision et comptes API) | Terminé  |
-| 12     | Tests, sécurité, build final                         | À faire  |
+| 12     | Tests, sécurité, build final                         | Terminé  |
 
 ## Décisions et hypothèses (module 0)
 
@@ -356,7 +403,7 @@ restent vides dans les fichiers d'exemple.
   montant reçu contrôlé ; paiement confirmé → réservation confirmée ; échec → le client peut réessayer.
 - **Paiement tardif** (réservation expirée ou annulée entre-temps) : le paiement reste « paid » et
   apparaît `requires_refund` côté agence ; aucune réservation n'est ressuscitée.
-- **Remboursement** : par le comptable ou le director (`payments.refund`), intégral, via la passerelle ;
+- **Remboursement** : par le comptable (`payments.refund`, seul rôle d'agence qui la détient), intégral, via la passerelle ;
   la réservation encore confirmée est annulée. Pas de remboursement automatique à l'annulation par le
   client ni de frais d'annulation en V1 : les paiements concernés apparaissent « à rembourser ».
 - **Webhook simulé** : `POST /api/v1/payments/webhooks/mock`, en-tête `X-Mock-Signature` =
@@ -393,8 +440,8 @@ restent vides dans les fichiers d'exemple.
 - **Tests frontend** (Vitest + Testing Library) : formulaire de réservation (passagers, enfants, limite
   de places, refus 409), formulaire de connexion (session, erreurs 422), schémas de recherche et de
   réservation, formatage, erreurs d'API, redirections sûres.
-- Le bundle initial (~155 Ko compressés) reste signalé au-dessus de 500 Ko non compressés par Vite
-  (React, routeur, requêtes, composants) : avertissement non bloquant, à optimiser au module 12 si besoin.
+- Bundle initial : ~127 Ko compressés (415 Ko non compressés), pages chargées à la demande ; Vite
+  ne signale plus de dépassement au module 12.
 
 ## Décisions et hypothèses (module 10 — espace agence)
 
@@ -441,3 +488,23 @@ restent vides dans les fichiers d'exemple.
   agence et administration (mutation d'enregistrement fournie par chaque espace).
 - **Messages d'erreur** : les refus par défaut du framework (403, 401) sont renvoyés en français ;
   dans l'espace agence, une section non autorisée affiche « Accès non autorisé » sans appeler l'API.
+
+## Décisions et hypothèses (module 12 — tests, sécurité, build final)
+
+- **En-têtes de sécurité** sur toutes les réponses de l'API (`SecurityHeaders`) : `nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` ; `Cache-Control: no-store` sur les
+  réponses authentifiées (données personnelles).
+- **Limitation des espaces authentifiés** : 300 requêtes/minute par utilisateur (client, agence,
+  administration), en plus des limites existantes (connexion 5/min, public 120/min, réservations
+  10/min, webhooks 300/min).
+- **Connexion** : le mot de passe est vérifié même pour un e-mail inconnu, afin que le temps de
+  réponse ne révèle pas l'existence d'un compte.
+- **`php artisan routier:check-production`** : refuse `APP_DEBUG=true`, une `APP_KEY` vide, la
+  passerelle de paiement simulée, Resend sans clé et une base inaccessible ; avertit si HTTPS n'est pas
+  utilisé ou si les e-mails ne partent pas. À lancer avant chaque mise en production.
+- **Tests d'acceptation** : `AcceptanceJourneyTest` enchaîne A1 à A11 sur les données de démonstration,
+  du visiteur anonyme au remboursement. Tests unitaires (`tests/Unit`) des machines d'état des trajets
+  et réservations, et de la matrice rôles → permissions (moindre privilège, pas d'escalade).
+- **Remboursements** : seul le comptable détient `payments.refund` dans une agence (matrice du
+  module 2). La documentation du module 8, qui mentionnait aussi le director, a été corrigée.
+- Pas de création du premier super_admin par commande dédiée en V1 : à faire en console.

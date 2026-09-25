@@ -21,13 +21,24 @@ class IssueAccessToken
     {
         $user = User::query()->where('email', $email)->first();
 
-        if ($user === null || ! Hash::check($password, $user->password) || ! $user->canEnterSpace($space)) {
+        // Vérification du mot de passe même pour un e-mail inconnu : temps de réponse
+        // comparable, pour ne pas révéler l'existence d'un compte.
+        $passwordValid = Hash::check($password, $user?->password ?? self::dummyHash());
+
+        if ($user === null || ! $passwordValid || ! $user->canEnterSpace($space)) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
         }
 
         return $this->forUser($user, $space, $deviceName);
+    }
+
+    private static function dummyHash(): string
+    {
+        static $hash = null;
+
+        return $hash ??= Hash::make('routier237-compte-inexistant');
     }
 
     public function forUser(User $user, AccessSpace $space, ?string $deviceName = null): NewAccessToken
