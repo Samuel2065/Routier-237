@@ -329,4 +329,20 @@ export interface AdminDashboard {
   trips: { published_next_7_days: number }
   reservations: { confirmed_last_30_days: number; pending: number }
   payments: { paid_this_month_amount: number; requires_refund: number }
+  /** Personnel dont un jeton a servi dans la fenêtre d'activité (window_minutes). */
+  active_staff: {
+    window_minutes: number
+    count: number
+    users: ActiveStaffMember[]
+  }
+}
+
+export interface ActiveStaffMember {
+  id: number
+  name: string
+  role: RoleName | null
+  avatar_url: string | null
+  agency: string | null
+  organization: string | null
+  last_active_at: string
 }

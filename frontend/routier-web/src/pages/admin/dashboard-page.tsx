@@ -2,12 +2,68 @@ import { AlertTriangle, Building2, CalendarClock, Landmark, Ticket, UserRoundX, 
 import { Link } from 'react-router'
 import { PageHeader } from '@/components/common/page-header'
 import { StatCard } from '@/components/common/stat-card'
-import { ErrorState, LoadingState } from '@/components/common/states'
+import { EmptyState, ErrorState, LoadingState } from '@/components/common/states'
+import { UserAvatar } from '@/components/common/user-avatar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAdminDashboard } from '@/features/admin/queries'
 import { getErrorMessage } from '@/lib/api-error'
 import { firstName, formatPrice } from '@/lib/format'
+import { ROLE_LABELS } from '@/lib/labels'
 import { useSession } from '@/store/auth-store'
+import type { AdminDashboard } from '@/types/api'
+
+/** « à l'instant », « il y a 5 min ». */
+function lastActivity(iso: string, now: number = Date.now()): string {
+  const minutes = Math.floor((now - new Date(iso).getTime()) / 60_000)
+  return minutes < 1 ? 'Actif à l’instant' : `Actif il y a ${minutes} min`
+}
+
+function ActiveStaffCard({ activeStaff }: { activeStaff: AdminDashboard['active_staff'] }) {
+  const hidden = activeStaff.count - activeStaff.users.length
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <div className="grid gap-1">
+          <CardTitle>Personnel actif</CardTitle>
+          <CardDescription>Personnel des agences connecté au cours des {activeStaff.window_minutes} dernières minutes.</CardDescription>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-700">
+          <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+          {activeStaff.count} en ligne
+        </span>
+      </CardHeader>
+      <CardContent>
+        {activeStaff.users.length === 0 ? (
+          <EmptyState
+            icon={<UsersRound className="size-8 text-muted-foreground" aria-hidden="true" />}
+            title={`Aucun membre du personnel actif dans les ${activeStaff.window_minutes} dernières minutes.`}
+          />
+        ) : (
+          <ul className="grid gap-1" aria-label="Personnel actif">
+            {activeStaff.users.map((member) => (
+              <li key={member.id} className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60">
+                <span className="relative">
+                  <UserAvatar name={member.name} src={member.avatar_url} />
+                  <span className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full bg-emerald-500 ring-2 ring-card" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{member.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[member.role ? ROLE_LABELS[member.role] : null, member.agency ?? member.organization].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">{lastActivity(member.last_active_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {hidden > 0 && <p className="mt-3 text-xs text-muted-foreground">Et {hidden} autre(s) membre(s) du personnel actif(s).</p>}
+      </CardContent>
+    </Card>
+  )
+}
 
 /**
  * Supervision de la plateforme (/admin/dashboard).
@@ -53,6 +109,8 @@ export function AdminDashboardPage() {
             />
             <StatCard label="Encaissé ce mois-ci" value={formatPrice(data.payments.paid_this_month_amount)} icon={Wallet} tone="success" />
           </div>
+
+          <ActiveStaffCard activeStaff={data.active_staff} />
         </>
       )}
     </div>

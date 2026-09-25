@@ -47,9 +47,9 @@ Plan : étape 1+2 identité + layouts → étape 3 accueil → correctif photo d
 | 1+2 | Couleur par espace (voyageur bleu, agence vert, admin ambre), sidebar sombre partagée avec compte + déconnexion en bas, barre supérieure (cloche voyageur uniquement, menu du profil), cartes KPI, accueil personnalisé des tableaux de bord, espace voyageur `/account` avec sidebar | ✅ validé par le client |
 | Photo de profil | Backend `users.avatar_path`, `POST/DELETE /api/v1/auth/me/avatar` ; pages « Mon profil » `/account/profile`, `/agency/profile`, `/admin/profile` | ✅ validé |
 | 3 | Nouvelle page d'accueil (hero, recherche, 4 étapes, destinations, agences, avantages, classes, espace agences, FAQ, CTA, pied de page) | ✅ validé |
-| 4 | « Personnel actif » sur le tableau de bord super-admin | 🟡 **en cours** (voir §4) |
+| 4 | « Personnel actif » sur le tableau de bord super-admin | ✅ terminé, en attente de validation |
 
-## 4. Étape 4 en cours — ce qui reste à faire
+## 4. Étape 4 — « Personnel actif » (terminée, à valider par le client)
 
 **Fait (backend)** : `app/Http/Controllers/Api/V1/Admin/DashboardController.php` renvoie un bloc
 `active_staff` dans `GET /api/v1/admin/dashboard` :
@@ -69,7 +69,7 @@ a `last_used_at` dans les 15 dernières minutes (Sanctum met à jour ce champ à
 10 comptes au plus, les plus récents d'abord. Réservé au super_admin (contrôle existant de l'endpoint).
 Les 4 tests existants de `AdminSupervisionTest` passent avec ce bloc.
 
-**Reste à faire** :
+**Fait aussi** (les points ci-dessous sont réalisés : test backend, carte frontend avec état vide, tests Vitest, README) :
 1. Test backend dans `tests/Feature/Admin/AdminSupervisionTest.php` : un employé avec jeton utilisé
    récemment apparaît ; jeton ancien (> 15 min), jeton expiré, compte suspendu et client n'apparaissent
    pas ; `count` correct. (Mettre `last_used_at` à la main sur `PersonalAccessToken`.)
@@ -119,7 +119,7 @@ Comptes de démo (mot de passe `password`) : `admin@routier237.test` (/admin/log
 `directeur@…`, `manager.bertoua@…`, `guichet.bertoua@…`, `comptable.bertoua@…`, `chauffeur.bertoua@…`,
 `manager.yaounde@…` (/agency/login), `client@routier237.test` (/login). Domaine : `@routier237.test`.
 
-Derniers résultats exécutés : backend **153 tests OK**, Pint OK ; frontend **50 tests OK**, lint OK,
+Derniers résultats exécutés : backend **154 tests OK**, Pint OK ; frontend **52 tests OK**, lint OK,
 build OK (bundle principal ≈ 132 Ko gzip).
 
 ## 7. Limites connues (ne pas inventer)

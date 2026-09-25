@@ -536,3 +536,8 @@ puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
   (`/?destination=<id>#recherche`) ; une ville sans image apparaît dans la liste simple.
 - Pas de page « toutes les agences », de mentions légales ni de coordonnées de contact de la
   plateforme : ces contenus n'existent pas encore et ne sont donc pas inventés dans le pied de page.
+- **Personnel actif** (tableau de bord super-admin) : bloc `active_staff` de `GET /api/v1/admin/dashboard`.
+  Personnel interne au compte actif dont un jeton Sanctum non expiré a servi dans les 15 dernières
+  minutes (`personal_access_tokens.last_used_at`, mis à jour par Sanctum à chaque requête). 10 comptes
+  au plus, sans e-mail ni téléphone ; nombre total affiché. Une déconnexion révoque le jeton et retire
+  la personne de la liste ; une fenêtre fermée sans déconnexion reste « active » jusqu'à 15 minutes.

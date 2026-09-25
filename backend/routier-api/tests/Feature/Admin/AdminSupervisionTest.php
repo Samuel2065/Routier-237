@@ -63,6 +63,39 @@ class AdminSupervisionTest extends TestCase
             ->assertJsonPath('data.payments.requires_refund', 1);
     }
 
+    public function test_dashboard_lists_recently_active_staff_only(): void
+    {
+        $agency = Agency::factory()->create();
+        $token = fn (User $user, array $attributes) => $user->createToken('test', ['space:agency'])->accessToken->forceFill($attributes)->save();
+
+        $clerk = $this->staff(RoleName::CounterClerk, $agency);
+        $token($clerk, ['last_used_at' => now()->subMinutes(2)]);
+        $manager = $this->staff(RoleName::AgencyManager, $agency);
+        $token($manager, ['last_used_at' => now()->subMinutes(10)]);
+
+        // Hors fenêtre, jeton expiré, compte suspendu, client : jamais listés.
+        $idle = $this->staff(RoleName::Driver, $agency);
+        $token($idle, ['last_used_at' => now()->subMinutes(40)]);
+        $expired = $this->staff(RoleName::Accountant, $agency);
+        $token($expired, ['last_used_at' => now()->subMinute(), 'expires_at' => now()->subSecond()]);
+        $suspended = $this->staff(RoleName::Driver, $agency);
+        $suspended->forceFill(['status' => UserStatus::Suspended])->save();
+        $token($suspended, ['last_used_at' => now()->subMinute()]);
+        $token($this->customer(), ['last_used_at' => now()->subMinute()]);
+
+        $response = $this->asAdmin($this->admin)->getJson('/api/v1/admin/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.active_staff.window_minutes', 15)
+            ->assertJsonPath('data.active_staff.count', 2)
+            ->assertJsonPath('data.active_staff.users.0.id', $clerk->id)
+            ->assertJsonPath('data.active_staff.users.0.role', 'counter_clerk')
+            ->assertJsonPath('data.active_staff.users.0.agency', $agency->name)
+            ->assertJsonPath('data.active_staff.users.1.id', $manager->id);
+
+        $this->assertCount(2, $response->json('data.active_staff.users'));
+        $this->assertArrayNotHasKey('email', $response->json('data.active_staff.users.0'));
+    }
+
     public function test_admin_lists_and_filters_users(): void
     {
         $organization = Organization::factory()->create();
