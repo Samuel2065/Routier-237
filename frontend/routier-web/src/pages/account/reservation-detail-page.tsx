@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Building2, CalendarDays, Phone } from 'lucide-react'
 import { Link, useParams } from 'react-router'
-import { Container } from '@/components/layout/container'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/states'
 import { PaymentStatusBadge, ReservationStatusBadge } from '@/components/common/status-badges'
 import { Badge } from '@/components/ui/badge'
@@ -32,16 +31,16 @@ export function ReservationDetailPage() {
 
   if (query.isPending) {
     return (
-      <Container>
+      <div>
         <LoadingState rows={3} />
-      </Container>
+      </div>
     )
   }
 
   if (query.isError) {
     const status = getStatus(query.error)
     return (
-      <Container>
+      <div>
         {status === 404 || status === 403 ? (
           <EmptyState
             title="Réservation introuvable"
@@ -54,7 +53,7 @@ export function ReservationDetailPage() {
         ) : (
           <ErrorState message={getErrorMessage(query.error)} onRetry={() => query.refetch()} />
         )}
-      </Container>
+      </div>
     )
   }
 
@@ -69,7 +68,7 @@ export function ReservationDetailPage() {
   const canCancel = (reservation.status === 'pending' || reservation.status === 'confirmed') && !departed
 
   return (
-    <Container className="grid max-w-4xl gap-6">
+    <div className="mx-auto grid w-full max-w-4xl gap-6">
       <Button variant="ghost" className="w-fit" asChild>
         <Link to="/account/reservations">
           <ArrowLeft aria-hidden="true" />
@@ -195,6 +194,6 @@ export function ReservationDetailPage() {
           </CardContent>
         </Card>
       </div>
-    </Container>
+    </div>
   )
 }

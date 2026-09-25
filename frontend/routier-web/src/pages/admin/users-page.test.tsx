@@ -20,7 +20,7 @@ describe('AdminUsersPage', () => {
     vi.mocked(updateAdminUserStatus).mockReset()
     vi.mocked(fetchAdminUsers).mockImplementation(async () => ({ data: users, meta: { current_page: 1, last_page: 1, per_page: 25, total: 2 } }) as Paginated<AdminUser>)
     useAuthStore.setState({
-      sessions: { admin: { token: '1|admin', expiresAt: '2099-01-01T00:00:00Z', user: { ...users[0], permissions: [] } } },
+      sessions: { admin: { token: '1|admin', expiresAt: '2099-01-01T00:00:00Z', user: { ...users[0], avatar_url: null, permissions: [] } } },
     })
   })
 

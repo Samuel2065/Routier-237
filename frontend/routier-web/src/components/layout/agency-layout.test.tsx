@@ -39,4 +39,24 @@ describe('AgencyLayout', () => {
 
     expect(navLabels()).toEqual(['Tableau de bord', 'Trajets', 'Réservations', 'Véhicules', 'Personnel', 'Paiements', 'Paramètres'])
   })
+
+  it('shows the signed-in account, a logout button and no notification bell', () => {
+    signInAgency('counter_clerk', ['dashboard.view', 'reservations.view'])
+    renderWithProviders(<AgencyLayout />, { route: '/agency/dashboard' })
+
+    const sidebar = screen.getByRole('complementary')
+    expect(within(sidebar).getByText('Agent Test')).toBeInTheDocument()
+    expect(within(sidebar).getByText('Agent de guichet')).toBeInTheDocument()
+    expect(within(sidebar).getByRole('button', { name: 'Déconnexion' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Menu du compte — Agent Test' })).toBeInTheDocument()
+    // Pas de notifications pour le personnel dans l'API : aucune cloche affichée.
+    expect(screen.queryByRole('link', { name: /Notifications/ })).not.toBeInTheDocument()
+  })
+
+  it('applies the agency accent to the document', () => {
+    signInAgency('driver', ['dashboard.view'])
+    renderWithProviders(<AgencyLayout />, { route: '/agency/dashboard' })
+
+    expect(document.documentElement.dataset.space).toBe('agency')
+  })
 })

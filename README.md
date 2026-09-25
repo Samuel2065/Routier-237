@@ -41,6 +41,7 @@ php artisan key:generate
 #   CREATE DATABASE routier237_v1         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 #   CREATE DATABASE routier237_v1_testing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 php artisan migrate --seed   # ou migrate:fresh --seed pour repartir de zéro
+php artisan storage:link     # photos de profil servies sous /storage
 php artisan serve            # http://localhost:8000
 php artisan test             # utilise routier237_v1_testing (voir phpunit.xml)
 ```
@@ -130,6 +131,7 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | agence  | `GET agency/reservations` (`?trip_id=&status=&date=&search=`), `GET agency/reservations/{id}`, `POST agency/reservations/{id}/cancel` | director, agency_manager, counter_clerk ; lecture : accountant |
 | client  | `POST account/reservations/{id}/payments` (`method`, `phone` pour le mobile money), `GET account/payments/{id}` | client |
 | client  | `POST account/payments/{id}/simulate` (`outcome=paid\|failed`) — passerelle mock, hors production | client |
+| tous    | `POST auth/me/avatar` (multipart `avatar` : JPEG, PNG ou WebP, 2 Mo, 64 à 5000 px), `DELETE auth/me/avatar` | compte connecté (sa propre photo) |
 | client  | `GET account/notifications` (`?unread=1`), `POST account/notifications/{id}/read`, `POST account/notifications/read-all` | client |
 | agence  | `GET agency/payments` (`?status=&method=&trip_id=&date_from=&date_to=&requires_refund=1`), `GET agency/payments/{id}` | director, agency_manager, counter_clerk, accountant |
 | agence  | `POST agency/payments/{id}/refund`                         | accountant (`payments.refund`) |
@@ -165,6 +167,7 @@ php artisan routier:check-production   # code de sortie 1 si un point bloquant e
 php artisan migrate --force
 php artisan db:seed --force   # villes, classes VIP/Classique, rôles et permissions
                                # (DemoSeeder est ignoré quand APP_ENV=production)
+php artisan storage:link       # photos de profil (storage/app/public → public/storage)
 php artisan config:cache && php artisan route:cache
 ```
 
@@ -508,3 +511,28 @@ puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
 - **Remboursements** : seul le comptable détient `payments.refund` dans une agence (matrice du
   module 2). La documentation du module 8, qui mentionnait aussi le director, a été corrigée.
 - Pas de création du premier super_admin par commande dédiée en V1 : à faire en console.
+
+## Décisions et hypothèses (refonte de l'interface)
+
+- **Identité par espace** : voyageur en bleu, personnel d'agence en vert (couleur de la marque),
+  administration en ambre. Navigation latérale sombre commune (`BackOfficeLayout`), avec le compte
+  et la déconnexion en bas, et une barre supérieure avec le menu du profil. L'espace voyageur
+  (`/account…`) a son propre tableau de bord ; ses URL ne changent pas.
+- **Aucune donnée inventée** : pas de variation en pourcentage sur les indicateurs (non calculée par
+  l'API) ; cloche de notifications uniquement dans l'espace voyageur (seul espace qui en reçoit).
+- **Photo de profil** : colonne `users.avatar_path`, fichier sur le disque `public` sous un nom
+  aléatoire (extension déduite du contenu), ancienne photo supprimée au remplacement. SVG refusé.
+  Nécessite `php artisan storage:link`. Page « Mon profil » dans chaque espace
+  (`/account/profile`, `/agency/profile`, `/admin/profile`) ; nom, e-mail et téléphone restent en
+  lecture seule (pas d'endpoint de modification en V1).
+- **Page d'accueil** : hero, recherche, fonctionnement en 4 étapes, destinations, agences, avantages
+  voyageurs, classes VIP/Classique, espace agences, FAQ, appel final et pied de page complet. Villes,
+  agences (et leur nombre par ville) et descriptions des classes viennent de l'API ; les autres textes
+  sont éditoriaux et décrivent les règles réellement appliquées. Aucun chiffre de fréquentation, avis
+  ou note : l'API n'en fournit pas.
+- **Images** : visuels fournis par le client (`src/assets/*.png`, générés par IA), convertis en WebP
+  compressé dans `src/assets/landing/` (≈ 580 Ko au total contre 18,5 Mo). Seules les copies WebP
+  sont intégrées au build. Une carte de ville pré-remplit la destination de la recherche
+  (`/?destination=<id>#recherche`) ; une ville sans image apparaît dans la liste simple.
+- Pas de page « toutes les agences », de mentions légales ni de coordonnées de contact de la
+  plateforme : ces contenus n'existent pas encore et ne sont donc pas inventés dans le pied de page.

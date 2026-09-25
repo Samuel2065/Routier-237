@@ -24,12 +24,16 @@ return [
     'different' => 'Les champs :attribute et :other doivent être différents.',
     'distinct' => 'Le champ :attribute contient une valeur en double.',
     'email' => 'Le champ :attribute doit être une adresse e-mail valide.',
+    'dimensions' => "L'image :attribute doit mesurer entre 64 et 5000 pixels de côté.",
     'enum' => 'La valeur du champ :attribute est invalide.',
     'exists' => 'La valeur du champ :attribute est invalide.',
+    'file' => 'Le champ :attribute doit être un fichier.',
+    'image' => 'Le champ :attribute doit être une image.',
     'in' => 'La valeur du champ :attribute est invalide.',
     'integer' => 'Le champ :attribute doit être un nombre entier.',
     'max' => [
         'array' => 'Le champ :attribute ne peut pas contenir plus de :max éléments.',
+        'file' => 'Le fichier :attribute ne peut pas dépasser :max Ko.',
         'numeric' => 'Le champ :attribute ne peut pas dépasser :max.',
         'string' => 'Le champ :attribute ne peut pas dépasser :max caractères.',
     ],
@@ -38,6 +42,7 @@ return [
         'numeric' => 'Le champ :attribute doit être au moins égal à :min.',
         'string' => 'Le champ :attribute doit contenir au moins :min caractères.',
     ],
+    'mimes' => 'Le champ :attribute doit être un fichier de type : :values.',
     'numeric' => 'Le champ :attribute doit être un nombre.',
     'password' => [
         'letters' => 'Le champ :attribute doit contenir au moins une lettre.',
@@ -88,5 +93,6 @@ return [
         'passengers' => 'passagers',
         'method' => 'moyen de paiement',
         'outcome' => 'résultat',
+        'avatar' => 'photo de profil',
     ],
 ];

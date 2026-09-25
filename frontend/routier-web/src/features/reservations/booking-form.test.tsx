@@ -32,6 +32,7 @@ const customer: User = {
   name: 'Client Démo',
   email: 'client@routier237.test',
   phone: '699000000',
+  avatar_url: null,
   status: 'active',
   role: 'customer',
   permissions: [],

@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Profil de l'utilisateur connecté, avec son rôle, ses permissions et son périmètre.
@@ -27,6 +28,7 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'avatar_url' => $this->avatar_path ? Storage::disk('public')->url($this->avatar_path) : null,
             'status' => $this->status,
             'role' => $this->primaryRole(),
             'permissions' => $this->getAllPermissions()->pluck('name')->sort()->values(),

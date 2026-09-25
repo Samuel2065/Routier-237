@@ -26,9 +26,18 @@ export const router = createBrowserRouter([
       { path: 'booking/:id', lazy: async () => ({ Component: (await import('@/pages/booking-page')).BookingPage }) },
       { path: 'login', lazy: async () => ({ Component: (await import('@/pages/login-page')).LoginPage }) },
       { path: 'register', lazy: async () => ({ Component: (await import('@/pages/register-page')).RegisterPage }) },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+
+  // Espace client : tableau de bord du voyageur connecté.
+  {
+    path: 'account',
+    element: <RequireCustomer />,
+    errorElement: <RouteErrorPage />,
+    children: [
       {
-        path: 'account',
-        element: <RequireCustomer />,
+        lazy: async () => ({ Component: (await import('@/components/layout/customer-layout')).CustomerLayout }),
         children: [
           { index: true, lazy: async () => ({ Component: (await import('@/pages/account/account-page')).AccountPage }) },
           {
@@ -39,9 +48,10 @@ export const router = createBrowserRouter([
             path: 'reservations/:id',
             lazy: async () => ({ Component: (await import('@/pages/account/reservation-detail-page')).ReservationDetailPage }),
           },
+          { path: 'profile', lazy: async () => ({ Component: (await import('@/pages/profile-page')).CustomerProfilePage }) },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
-      { path: '*', element: <NotFoundPage /> },
     ],
   },
 
@@ -95,6 +105,8 @@ export const router = createBrowserRouter([
             element: <RequireAgencyPermission anyOf={sectionPermissions('settings')} />,
             children: [{ index: true, lazy: async () => ({ Component: (await import('@/pages/agency/settings-page')).AgencySettingsPage }) }],
           },
+          // Profil personnel : accessible à tout le personnel, sans permission de section.
+          { path: 'profile', lazy: async () => ({ Component: (await import('@/pages/profile-page')).AgencyProfilePage }) },
           { path: '*', element: <NotFoundPage /> },
         ],
       },
@@ -125,6 +137,7 @@ export const router = createBrowserRouter([
           { path: 'agencies', lazy: async () => ({ Component: (await import('@/pages/admin/agencies-page')).AdminAgenciesPage }) },
           { path: 'users', lazy: async () => ({ Component: (await import('@/pages/admin/users-page')).AdminUsersPage }) },
           { path: 'referentials', lazy: async () => ({ Component: (await import('@/pages/admin/referentials-page')).AdminReferentialsPage }) },
+          { path: 'profile', lazy: async () => ({ Component: (await import('@/pages/profile-page')).AdminProfilePage }) },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

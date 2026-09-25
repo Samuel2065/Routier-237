@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Images originales du client (versions WebP optimisées dans src/assets/landing/)
+src/assets/*.png

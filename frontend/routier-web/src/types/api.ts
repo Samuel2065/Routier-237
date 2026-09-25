@@ -31,6 +31,8 @@ export interface User {
   name: string
   email: string
   phone: string | null
+  /** Photo de profil (null : initiales affichées). */
+  avatar_url: string | null
   status: 'active' | 'suspended'
   role: RoleName | null
   permissions: string[]

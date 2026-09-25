@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\Agency\ReservationController as AgencyReservatio
 use App\Http\Controllers\Api\V1\Agency\TripController;
 use App\Http\Controllers\Api\V1\Agency\VehicleController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AvatarController;
 use App\Http\Controllers\Api\V1\Management\AgencyController;
 use App\Http\Controllers\Api\V1\Management\OrganizationController;
 use App\Http\Controllers\Api\V1\Management\RouteController;
@@ -62,6 +63,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::middleware(['auth:sanctum', 'space', 'throttle:authenticated'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+        Route::post('auth/me/avatar', [AvatarController::class, 'update'])->middleware('throttle:10,1')->name('auth.avatar.update');
+        Route::delete('auth/me/avatar', [AvatarController::class, 'destroy'])->name('auth.avatar.destroy');
     });
 
     // Espace client.

@@ -17,12 +17,20 @@ use App\Models\Trip;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * Supervision de la plateforme (/admin/dashboard) : indicateurs globaux, toutes organisations.
  */
 class DashboardController extends Controller
 {
+    /** Fenêtre d'activité du personnel, en minutes. */
+    private const ACTIVE_WINDOW_MINUTES = 15;
+
+    private const ACTIVE_STAFF_LIMIT = 10;
+
     public function __invoke(Request $request): JsonResponse
     {
         abort_unless($request->user()->isSuperAdmin(), 403);
@@ -66,6 +74,53 @@ class DashboardController extends Controller
                     ->whereHas('reservation', fn ($query) => $query->where('status', '!=', ReservationStatus::Confirmed))
                     ->count(),
             ],
+            'active_staff' => $this->activeStaff(),
         ]]);
+    }
+
+    /**
+     * Personnel actif : comptes internes actifs dont un jeton valide a servi récemment
+     * (Sanctum met à jour last_used_at à chaque requête authentifiée).
+     *
+     * @return array<string, mixed>
+     */
+    private function activeStaff(): array
+    {
+        $activity = PersonalAccessToken::query()
+            ->where('tokenable_type', (new User)->getMorphClass())
+            ->where('last_used_at', '>=', now()->subMinutes(self::ACTIVE_WINDOW_MINUTES))
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->selectRaw('tokenable_id, MAX(last_used_at) as last_active_at')
+            ->groupBy('tokenable_id');
+
+        $staff = User::query()
+            ->role(array_map(fn (RoleName $role) => $role->value, RoleName::internal()))
+            ->where('users.status', UserStatus::Active)
+            ->joinSub($activity, 'activity', 'activity.tokenable_id', '=', 'users.id');
+
+        $users = (clone $staff)
+            ->select('users.*', 'activity.last_active_at')
+            ->orderByDesc('activity.last_active_at')
+            ->limit(self::ACTIVE_STAFF_LIMIT)
+            ->with(['roles', 'organization', 'employeeProfile.agency.organization'])
+            ->get();
+
+        return [
+            'window_minutes' => self::ACTIVE_WINDOW_MINUTES,
+            'count' => $staff->count(),
+            'users' => $users->map(function (User $user) {
+                $agency = $user->employeeProfile?->agency;
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'role' => $user->primaryRole(),
+                    'avatar_url' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
+                    'agency' => $agency?->name,
+                    'organization' => ($user->organization ?? $agency?->organization)?->name,
+                    'last_active_at' => Carbon::parse($user->getAttribute('last_active_at'))->toIso8601String(),
+                ];
+            })->values(),
+        ];
     }
 }

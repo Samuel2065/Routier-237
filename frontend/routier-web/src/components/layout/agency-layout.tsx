@@ -1,3 +1,4 @@
+import { LayoutDashboard, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { BackOfficeLayout } from '@/components/layout/back-office-layout'
 import { AGENCY_SECTIONS } from '@/features/agency/sections'
@@ -20,17 +21,23 @@ export function AgencyLayout() {
 
   return (
     <BackOfficeLayout
+      space="agency"
       spaceLabel="Espace agence"
       homePath="/agency/dashboard"
+      profilePath="/agency/profile"
       navItems={AGENCY_SECTIONS.filter((section) => section.permissions.some(can)).map(({ path, label, icon }) => ({
         to: `/agency/${path}`,
         label,
         icon,
       }))}
       scopeLabel={user.agency?.name ?? user.organization?.name ?? ''}
-      userName={user.name}
-      roleLabel={user.role ? ROLE_LABELS[user.role] : ''}
+      user={{ name: user.name, email: user.email, roleLabel: user.role ? ROLE_LABELS[user.role] : '', avatarUrl: user.avatar_url }}
+      menuItems={[
+        { to: '/agency/profile', label: 'Mon profil', icon: UserRound },
+        ...(can('dashboard.view') ? [{ to: '/agency/dashboard', label: 'Tableau de bord', icon: LayoutDashboard }] : []),
+      ]}
       onLogout={() => logout.mutate(undefined, { onSettled: () => navigate('/agency/login', { replace: true }) })}
+      logoutPending={logout.isPending}
     />
   )
 }

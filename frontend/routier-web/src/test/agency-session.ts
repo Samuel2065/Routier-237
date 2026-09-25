@@ -15,6 +15,7 @@ export function signInAgency(role: RoleName, permissions: string[], overrides: P
           name: 'Agent Test',
           email: 'agent@routier237.test',
           phone: null,
+          avatar_url: null,
           status: 'active',
           role,
           permissions,

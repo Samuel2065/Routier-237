@@ -1,6 +1,5 @@
 import { Ticket } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router'
-import { Container } from '@/components/layout/container'
 import { PageHeader } from '@/components/common/page-header'
 import { Pagination } from '@/components/common/pagination'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/states'
@@ -33,7 +32,7 @@ export function ReservationsPage() {
   }
 
   return (
-    <Container className="grid gap-6">
+    <div className="grid gap-6">
       <PageHeader title="Mes réservations" description="Suivez le statut et le paiement de vos réservations." />
 
       <Tabs value={status ?? ALL} onValueChange={(value) => update({ status: value, page: 1 })}>
@@ -72,6 +71,6 @@ export function ReservationsPage() {
           <Pagination meta={reservations.data.meta} onPageChange={(next) => update({ page: next })} />
         </>
       )}
-    </Container>
+    </div>
   )
 }

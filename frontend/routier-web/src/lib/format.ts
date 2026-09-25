@@ -62,3 +62,10 @@ export function addDays(date: string, days: number): string {
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count > 1 ? plural : singular}`
 }
+
+/**
+ * Prénom (premier mot du nom complet) pour les messages d'accueil.
+ */
+export function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] || fullName
+}
