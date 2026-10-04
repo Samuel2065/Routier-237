@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { BackOfficeLayout, type BackOfficeNavItem } from '@/components/layout/back-office-layout'
 import { useCustomerLogout } from '@/features/auth/queries'
 import { useNotifications } from '@/features/notifications/queries'
+import { useLiveUpdates } from '@/features/realtime/live-updates'
 import { ROLE_LABELS } from '@/lib/labels'
 import { useSession } from '@/store/auth-store'
 
@@ -26,6 +27,8 @@ export function CustomerLayout() {
   const navigate = useNavigate()
   const logout = useCustomerLogout()
   const notifications = useNotifications({}, !!session)
+  // Réservations, paiements et notifications du voyageur actualisés en direct.
+  useLiveUpdates('customer', session ? `user.${session.user.id}` : null)
 
   if (!session) return null
   const { user } = session

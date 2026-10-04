@@ -6,6 +6,9 @@ const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replac
 
 export const API_BASE_URL = `${API_URL}/api/v1`
 
+/** Autorisation des canaux temps réel privés (Laravel Broadcasting, hors version de l'API). */
+export const BROADCAST_AUTH_URL = `${API_URL}/api/broadcasting/auth`
+
 /**
  * Refus de l'API qui invalident la session locale : jeton absent, expiré ou révoqué (401),
  * compte désactivé, ou jeton émis pour un autre espace (403 du middleware « space »).

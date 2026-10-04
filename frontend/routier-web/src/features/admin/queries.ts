@@ -22,6 +22,7 @@ import {
   type OrganizationInput,
 } from '@/api/admin'
 import { queryKeys } from '@/lib/query-keys'
+import { useLiveFallbackInterval } from '@/lib/realtime'
 import { useAuthStore } from '@/store/auth-store'
 
 /**
@@ -67,7 +68,7 @@ export function useAdminLogout() {
 /* Lectures ----------------------------------------------------------------- */
 
 export function useAdminDashboard() {
-  return useQuery({ queryKey: adminKeys.dashboard, queryFn: fetchAdminDashboard, refetchInterval: 60_000 })
+  return useQuery({ queryKey: adminKeys.dashboard, queryFn: fetchAdminDashboard, refetchInterval: useLiveFallbackInterval() })
 }
 
 export function useOrganizations(filters: Record<string, string | number | undefined> = {}) {

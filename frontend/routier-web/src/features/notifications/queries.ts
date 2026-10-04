@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/notifications'
 import { queryKeys } from '@/lib/query-keys'
+import { useLiveFallbackInterval } from '@/lib/realtime'
 
 export function useNotifications(params: { unread?: boolean; page?: number } = {}, enabled = true) {
   return useQuery({
     queryKey: queryKeys.notifications(params),
     queryFn: () => fetchNotifications(params),
     enabled,
-    refetchInterval: 60_000,
+    refetchInterval: useLiveFallbackInterval(),
   })
 }
 

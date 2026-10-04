@@ -9,6 +9,7 @@ import { TripCard } from '@/features/trips/trip-card'
 import { getErrorMessage, getStatus } from '@/lib/api-error'
 import { formatDate } from '@/lib/format'
 import type { PublicTrip } from '@/types/api'
+import { usePublicAvailabilityUpdates } from '@/features/realtime/live-updates'
 
 /**
  * Profil public d'une agence et ses trajets publiés (/agencies/:id).
@@ -18,6 +19,8 @@ export function AgencyPage() {
   const agencyId = Number(id)
   const agency = useAgency(agencyId)
   const trips = useAgencyTrips(agencyId)
+  // Places disponibles actualisées en direct (canal public).
+  usePublicAvailabilityUpdates()
 
   if (agency.isPending) {
     return (

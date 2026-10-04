@@ -7,6 +7,7 @@ import {
   type CreateReservationPayload,
 } from '@/api/reservations'
 import { queryKeys } from '@/lib/query-keys'
+import { useLiveFallbackInterval } from '@/lib/realtime'
 import type { ReservationStatus } from '@/types/api'
 
 export function useMyReservations(params: { status?: ReservationStatus; page?: number } = {}) {
@@ -14,6 +15,7 @@ export function useMyReservations(params: { status?: ReservationStatus; page?: n
     queryKey: queryKeys.myReservations(params),
     queryFn: () => fetchMyReservations(params),
     placeholderData: keepPreviousData,
+    refetchInterval: useLiveFallbackInterval(),
   })
 }
 
@@ -22,6 +24,7 @@ export function useMyReservation(id: number) {
     queryKey: queryKeys.myReservation(id),
     queryFn: () => fetchMyReservation(id),
     enabled: Number.isInteger(id) && id > 0,
+    refetchInterval: useLiveFallbackInterval(),
   })
 }
 

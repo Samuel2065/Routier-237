@@ -12,6 +12,7 @@ import { parseSearchParams, toSearchQuery } from '@/features/trips/search-schema
 import { TripCard } from '@/features/trips/trip-card'
 import { getErrorMessage } from '@/lib/api-error'
 import { addDays, formatDate, pluralize, todayInCameroon } from '@/lib/format'
+import { usePublicAvailabilityUpdates } from '@/features/realtime/live-updates'
 
 const ALL_CLASSES = 'all'
 
@@ -22,6 +23,8 @@ export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const criteria = parseSearchParams(searchParams)
   const search = useTripSearch(criteria)
+  // Places disponibles actualisées en direct (canal public).
+  usePublicAvailabilityUpdates()
   const travelClasses = useTravelClasses()
 
   const updateParam = (key: string, value: string | undefined) => {

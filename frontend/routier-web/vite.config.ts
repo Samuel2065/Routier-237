@@ -20,5 +20,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Tests sans connexion temps réel réelle (le .env local peut l'activer).
+    env: { VITE_REVERB_APP_KEY: '' },
   },
 })

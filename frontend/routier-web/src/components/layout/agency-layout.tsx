@@ -2,6 +2,8 @@ import { LayoutDashboard, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { BackOfficeLayout } from '@/components/layout/back-office-layout'
 import { AGENCY_SECTIONS } from '@/features/agency/sections'
+import { agencyLiveChannel } from '@/features/agency/session'
+import { useLiveUpdates } from '@/features/realtime/live-updates'
 import { useAgencyLogout, useAgencyProfileRefresh, useCan } from '@/features/agency/session'
 import { ROLE_LABELS } from '@/lib/labels'
 import { useSession } from '@/store/auth-store'
@@ -15,6 +17,7 @@ export function AgencyLayout() {
   const logout = useAgencyLogout()
   const can = useCan()
   useAgencyProfileRefresh()
+  useLiveUpdates('agency', agencyLiveChannel(session?.user))
 
   if (!session) return null
   const { user } = session

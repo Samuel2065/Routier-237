@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { fetchAgencyProfile, loginAgency, logoutAgency } from '@/api/agency'
 import { useAuthStore, useSession } from '@/store/auth-store'
+import type { User } from '@/types/api'
 
 /**
  * Session de l'espace agence (jeton limité à l'espace « agency »).
@@ -59,4 +60,14 @@ export function useCan() {
 export function useIsMultiAgency(): boolean {
   const session = useSession('agency')
   return !!session && session.user.agency === null
+}
+
+/**
+ * Canal temps réel du personnel : celui de son agence, ou celui de l'organisation pour un
+ * director (toutes ses agences). Autorisations vérifiées par l'API (routes/channels.php).
+ */
+export function agencyLiveChannel(user: User | undefined): string | null {
+  if (user?.agency) return `agency.${user.agency.id}`
+  if (user?.role === 'director' && user.organization) return `organization.${user.organization.id}`
+  return null
 }

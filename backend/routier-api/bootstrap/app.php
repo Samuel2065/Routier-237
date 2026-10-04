@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // Temps réel : POST /api/broadcasting/auth, avec le jeton Bearer de l'espace.
+    ->withBroadcasting(__DIR__.'/../routes/channels.php', [
+        'prefix' => 'api',
+        'middleware' => ['api', 'auth:sanctum', 'space', 'throttle:authenticated'],
+    ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->api(prepend: [ForceJsonResponse::class], append: [SecurityHeaders::class]);
 

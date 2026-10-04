@@ -43,8 +43,14 @@ php artisan key:generate
 php artisan migrate --seed   # ou migrate:fresh --seed pour repartir de zéro
 php artisan storage:link     # photos de profil servies sous /storage
 php artisan serve            # http://localhost:8000
+php artisan reverb:start     # temps réel, ws://localhost:8080 (dans un 2e terminal, facultatif)
 php artisan test             # utilise routier237_v1_testing (voir phpunit.xml)
 ```
+
+Temps réel (facultatif) : renseigner le bloc « Reverb » de `.env` (`BROADCAST_CONNECTION=reverb`,
+identifiants générés, voir `.env.example`) et `VITE_REVERB_APP_KEY` côté frontend (même clé que
+`REVERB_APP_KEY`). Sans Reverb, l'application fonctionne normalement et actualise les écrans par
+interrogation régulière (60 s).
 
 ### Comptes de démonstration
 
@@ -127,6 +133,7 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | public  | `GET travel-classes`                                      | tous                        |
 | public  | `GET trips/search?departure_city_id=&destination_city_id=&date=` (+ `passengers`, `travel_class_id`, `sort=departure\|price`) | tous |
 | public  | `GET trips/{id}` (détail, champ `bookable`), `GET agencies/{id}/trips` | tous          |
+| tous    | `POST /api/broadcasting/auth` (hors `/v1`) : autorisation d'un canal temps réel privé | compte connecté, selon l'espace du jeton (`routes/channels.php`) |
 | client  | `GET/POST account/reservations`, `GET account/reservations/{id}`, `POST account/reservations/{id}/cancel` | client (ses réservations) |
 | agence  | `GET agency/reservations` (`?trip_id=&status=&date=&search=`), `GET agency/reservations/{id}`, `POST agency/reservations/{id}/cancel` | director, agency_manager, counter_clerk ; lecture : accountant |
 | client  | `POST account/reservations/{id}/payments` (`method`, `phone` pour le mobile money), `GET account/payments/{id}` | client |
@@ -175,6 +182,16 @@ Ne jamais lancer `DemoSeeder` ni `migrate:fresh` en production. Planificateur à
 (cron chaque minute : `php artisan schedule:run`) pour l'expiration des réservations en attente,
 la clôture des trajets passés et la purge des jetons. Le premier super_admin se crée en console
 (`php artisan tinker`), aucun compte n'étant livré avec le code.
+
+**Temps réel (Laravel Reverb)** : nécessite un processus permanent, donc un **VPS** (par exemple
+VPS Hostinger avec accès SSH) : `php artisan reverb:start` maintenu par Supervisor, et un proxy
+HTTPS (Nginx) qui transmet les WebSockets `wss://` vers le port de Reverb. Renseigner
+`BROADCAST_CONNECTION=reverb`, `REVERB_APP_ID/KEY/SECRET` (secret généré, jamais commité),
+`REVERB_HOST` (domaine public), `REVERB_PORT=443`, `REVERB_SCHEME=https`, et côté frontend
+`VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT=443`, `VITE_REVERB_SCHEME=https`.
+Relancer Reverb après chaque déploiement (`php artisan reverb:restart`).
+Sur un **hébergement mutualisé** (sans processus permanent) : `BROADCAST_CONNECTION=null` et
+`VITE_REVERB_APP_KEY` vide ; les écrans s'actualisent alors par interrogation régulière.
 
 **Frontend** (`frontend/routier-web`) : `npm ci`, `VITE_API_URL=https://<api>` dans `.env`,
 `npm run build`, puis servir `dist/` comme application monopage (toutes les routes renvoient
@@ -568,3 +585,35 @@ puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
   d'URL (`account/`, `agency/`, `admin/`), indépendamment du middleware déclaré, et toute nouvelle
   route est couverte automatiquement. `ResourceIsolationTest` vérifie par HTTP les accès par
   identifiant (autre client, autre agence, autre organisation, permission manquante, compte suspendu).
+
+## Décisions et hypothèses (temps réel — phase 2, octobre 2026)
+
+- **Laravel Reverb + Laravel Echo** (choix du client) : `laravel/reverb` 1.x côté API,
+  `laravel-echo` 2.x et `pusher-js` 8.x côté React, chargés à la demande (bundle initial inchangé).
+  TanStack Query reste le seul cache : le temps réel ne fait que déclencher des invalidations.
+- **Signaux, pas de données** (`App\Events\LiveUpdate`, diffusé immédiatement, sans file d'attente) :
+  sujets modifiés (`reservations`, `trips`, `payments`, `vehicles`, `dashboard`, `notifications`,
+  `availability`) et identifiants. Le navigateur relit les données par l'API, qui applique ses
+  contrôles d'accès : rien de confidentiel ne transite par le canal.
+- **Collecte centralisée** (`App\Support\LiveUpdates`) : les événements Eloquent des réservations,
+  paiements, trajets, véhicules et notifications sont enregistrés **après validation de la
+  transaction** (une transaction annulée ne signale rien), puis envoyés en fin de requête ou de
+  commande, **un signal par canal** même si cent lignes ont changé. Les mises à jour en masse
+  (`reservations:expire`, `trips:complete-past`) signalent explicitement.
+- **Canaux** (`routes/channels.php`, autorisés par `POST /api/broadcasting/auth` avec le jeton de
+  l'espace) : `agency.{id}` (personnel de l'agence), `organization.{id}` (director), `user.{id}` (le
+  client lui-même), `admin` (super_admin, indicateurs seulement) ; canal public `trips` (identifiants
+  de trajets dont la disponibilité a changé, information déjà publique). Un jeton client n'ouvre
+  jamais un canal d'agence ; le super_admin n'écoute pas les canaux d'agence.
+- **Serveur Reverb** : connexions acceptées uniquement depuis l'origine du frontend (`FRONTEND_URL`),
+  aucun message de navigateur à navigateur. **Indisponibilité tolérée** : délai d'envoi court (1–2 s),
+  échec journalisé (« Temps réel : signal non diffusé. »), l'action de l'utilisateur aboutit toujours.
+- **Repli** : sans Reverb configuré ou connecté, les écrans suivis (tableaux de bord, listes de
+  trajets/réservations/paiements de l'agence, réservations et notifications du voyageur, recherche
+  et détail d'un trajet) s'actualisent toutes les 60 s ; cette interrogation s'arrête dès que le
+  temps réel est connecté. Après une coupure, l'espace est rechargé (signaux manqués).
+- **Places et double réservation** : inchangé, la base reste la source de vérité. La disponibilité
+  est recalculée sous verrou à chaque réservation (`CreateReservation`) ; un écran périmé ne peut
+  donc jamais provoquer de surréservation, au pire un refus 409 explicite. Pas de mise à jour
+  optimiste des places ni des statuts : ils dépendent de la validation du serveur.
+- `php artisan routier:check-production` vérifie aussi les identifiants Reverb et l'usage de HTTPS.

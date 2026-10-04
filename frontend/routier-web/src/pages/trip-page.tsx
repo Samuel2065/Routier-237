@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useTrip } from '@/features/trips/queries'
 import { TripSummary } from '@/features/trips/trip-summary'
 import { getErrorMessage, getStatus } from '@/lib/api-error'
+import { usePublicAvailabilityUpdates } from '@/features/realtime/live-updates'
 
 /**
  * Détail public d'un trajet publié (/trips/:id).
@@ -17,6 +18,8 @@ export function TripPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const trip = useTrip(Number(id))
+  // Places disponibles actualisées en direct (canal public).
+  usePublicAvailabilityUpdates()
   const passengers = searchParams.get('passengers')
 
   return (

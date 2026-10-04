@@ -55,8 +55,8 @@ de compte de service Firebase. Pas de dépendance ni de migration sans justifica
 | Phase | Contenu | Statut |
 |---|---|---|
 | 0 | Audit sans modification + plan | ✅ validé (diagnostic confirmé par le client) |
-| 1 | Sécurité et séparation des accès | ✅ terminé le 04/10, **non commité, en attente du test et du feu vert client** |
-| 2 | Données React actualisées sans rechargement | à faire |
+| 1 | Sécurité et séparation des accès | ✅ validé par le client, commit `49f7584` (GitLab + GitHub) |
+| 2 | Données React actualisées sans rechargement (Reverb) | ✅ terminé le 04/10, **non commité, en attente du test et du feu vert client** |
 | 3 | Toasts, centre de notifications, Firebase Cloud Messaging | à faire |
 | 4 | Fonctionnalités Super Admin | à faire |
 
@@ -125,10 +125,42 @@ la phase). Détails dans le README, « Décisions et hypothèses (sécurité —
 - Résultats : backend 162 tests OK (2204 assertions), Pint OK ; frontend 68 tests OK (19 fichiers),
   lint OK, build OK (132,5 Ko gzip).
 
+Phase 1 validée par le client et commitée : `49f7584`, poussée sur GitLab (`gitlab`) et GitHub (`origin`).
+
+### Phase 2 — réalisée (04/10/2026, non commitée, en attente du test client)
+
+Choix du client : **Laravel Reverb + Echo** ; hébergement prévu **Hostinger avec SSH** (Reverb exige
+un VPS : processus permanent + proxy wss ; sur mutualisé → `BROADCAST_CONNECTION=null`, repli par
+interrogation). Détails : README « Décisions et hypothèses (temps réel — phase 2) ».
+
+- Dépendances : `laravel/reverb` ^1.12 (composer) ; `laravel-echo` ^2.5 et `pusher-js` ^8.6 (npm,
+  chargés à la demande). Aucune migration. `npm audit` signale `braces` via `shadcn` : préexistant.
+- Backend : `app/Events/LiveUpdate.php` (signal `live.update`, ShouldBroadcastNow, sujets + ids) ;
+  `app/Support/LiveUpdates.php` (collecte après commit, un signal par canal, envoi en fin de requête,
+  échec journalisé sans bloquer) ; observateurs + `terminating` dans `AppServiceProvider` ;
+  signaux explicites dans `ExpirePendingReservations` et `CompletePastTrips` ; `routes/channels.php`
+  (agency.{id}, organization.{id}, user.{id}, admin ; espace du jeton vérifié) ; `bootstrap/app.php`
+  `withBroadcasting` → `POST /api/broadcasting/auth` (auth:sanctum + space) ; `config/broadcasting.php`
+  (timeouts 1–2 s), `config/reverb.php` (origines = hôtes de FRONTEND_URL, pas de whisper) ;
+  `.env.example` (bloc Reverb sans secret, `BROADCAST_CONNECTION=null` par défaut) ; `phpunit.xml`
+  (`BROADCAST_CONNECTION=null`) ; `routier:check-production` contrôle Reverb/HTTPS.
+  `.env` local : Reverb activé avec identifiants générés (non affichés, non commités).
+- Frontend : `src/lib/realtime.ts` (Echo à la demande, autorisation via le client HTTP de l'espace,
+  état de connexion, `useLiveFallbackInterval`) ; `src/features/realtime/live-updates.ts`
+  (`useLiveUpdates`, `queryKeysFor`, regroupement 250 ms, rechargement après coupure) ; branché dans
+  `customer-layout`, `agency-layout` (`agencyLiveChannel` dans `features/agency/session.ts`),
+  `admin-layout`, et pages publiques search/trip/booking/agency (canal `trips`) ; interrogation de
+  secours 60 s seulement hors connexion temps réel ; `.env.example` (VITE_REVERB_*) ;
+  `vite.config.ts` (tests sans temps réel).
+- Tests : `tests/Feature/Realtime/LiveUpdatesTest.php` (7) ; `src/features/realtime/live-updates.test.tsx` (10).
+  Vérification réelle : Reverb démarre sous Windows ; un client WebSocket reçoit
+  `{"topics":["availability"],"ids":{"trip":[7]}}` après modification d'un trajet ; origine étrangère
+  et canal privé non signé refusés ; le navigateur du client s'abonnait déjà à `private-agency.1`.
+- Résultats : backend 169 tests OK (2247 assertions), Pint OK ; frontend 78 tests OK (20 fichiers),
+  lint OK, build OK (index 132,6 Ko gzip ; echo 2,8 Ko et pusher 18,1 Ko chargés à la demande).
+
 ### Plan des phases suivantes
 
-- **Phase 2** : Laravel Reverb + Echo (justifié en phase 2) ou TanStack seul ; événements sans
-  données sensibles, canaux privés par agence/utilisateur, invalidation ciblée des requêtes.
 - **Phase 3** : notifications pour personnel/admin, toasts automatiques dédupliqués par id de
   notification, centre de notifications dans les 3 espaces, FCM (table des jetons d'appareil,
   service worker, VAPID, envoi serveur), étapes Firebase Console guidées pour le client.
@@ -159,6 +191,7 @@ composer install && cp .env.example .env && php artisan key:generate
 php artisan migrate --seed
 php artisan storage:link      # obligatoire pour les photos de profil
 php artisan serve             # http://localhost:8000
+php artisan reverb:start      # temps réel ws://localhost:8080 (2e terminal, facultatif)
 php artisan test              # base routier237_v1_testing
 
 # Frontend
@@ -172,8 +205,8 @@ Comptes de démo (mot de passe `password`) : `admin@routier237.test` (/admin/log
 `directeur@…`, `manager.bertoua@…`, `guichet.bertoua@…`, `comptable.bertoua@…`, `chauffeur.bertoua@…`,
 `manager.yaounde@…` (/agency/login), `client@routier237.test` (/login). Domaine : `@routier237.test`.
 
-Derniers résultats exécutés (04/10/2026, fin de Phase 1) : backend **162 tests OK**, Pint OK ;
-frontend **68 tests OK**, lint OK, build OK (bundle principal ≈ 132,5 Ko gzip).
+Derniers résultats exécutés (04/10/2026, fin de Phase 2) : backend **169 tests OK**, Pint OK ;
+frontend **78 tests OK**, lint OK, build OK (bundle principal ≈ 132,6 Ko gzip).
 
 ## 7. Limites connues (ne pas inventer)
 

@@ -1,3 +1,4 @@
+import { useLiveFallbackInterval } from '@/lib/realtime'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   cancelAgencyReservation,
@@ -61,7 +62,7 @@ export const agencyKeys = {
 /* Lectures ----------------------------------------------------------------- */
 
 export function useDashboard(agencyId?: number) {
-  return useQuery({ queryKey: agencyKeys.dashboard(agencyId), queryFn: () => fetchDashboard(agencyId), refetchInterval: 60_000 })
+  return useQuery({ queryKey: agencyKeys.dashboard(agencyId), queryFn: () => fetchDashboard(agencyId), refetchInterval: useLiveFallbackInterval() })
 }
 
 export function useManagedAgencies(enabled = true) {
@@ -77,7 +78,7 @@ export function useRoutes(enabled = true) {
 }
 
 export function useTrips(filters: TripFilters) {
-  return useQuery({ queryKey: agencyKeys.trips(filters), queryFn: () => fetchTrips(filters), placeholderData: keepPreviousData })
+  return useQuery({ queryKey: agencyKeys.trips(filters), queryFn: () => fetchTrips(filters), placeholderData: keepPreviousData, refetchInterval: useLiveFallbackInterval() })
 }
 
 export function useVehicles(filters: Record<string, string | number | undefined> = {}, enabled = true) {
@@ -98,6 +99,7 @@ export function useAgencyReservations(filters: ReservationFilters) {
     queryKey: agencyKeys.reservations(filters),
     queryFn: () => fetchAgencyReservations(filters),
     placeholderData: keepPreviousData,
+    refetchInterval: useLiveFallbackInterval(),
   })
 }
 
@@ -106,7 +108,7 @@ export function useAgencyReservation(id: number | null) {
 }
 
 export function useAgencyPayments(filters: PaymentFilters) {
-  return useQuery({ queryKey: agencyKeys.payments(filters), queryFn: () => fetchAgencyPayments(filters), placeholderData: keepPreviousData })
+  return useQuery({ queryKey: agencyKeys.payments(filters), queryFn: () => fetchAgencyPayments(filters), placeholderData: keepPreviousData, refetchInterval: useLiveFallbackInterval() })
 }
 
 /* Écritures ------------------------------------------------------------------ */

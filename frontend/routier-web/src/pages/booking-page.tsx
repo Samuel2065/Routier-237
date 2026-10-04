@@ -12,6 +12,7 @@ import { useTrip } from '@/features/trips/queries'
 import { TripSummary } from '@/features/trips/trip-summary'
 import { getErrorMessage, getStatus } from '@/lib/api-error'
 import { useSession } from '@/store/auth-store'
+import { usePublicAvailabilityUpdates } from '@/features/realtime/live-updates'
 
 /**
  * Parcours de réservation (/booking/:id, §5.2) : récapitulatif, authentification
@@ -24,6 +25,8 @@ export function BookingPage() {
   const navigate = useNavigate()
   const session = useSession('customer')
   const trip = useTrip(Number(id))
+  // Places disponibles actualisées en direct (canal public).
+  usePublicAvailabilityUpdates()
   const redirect = encodeURIComponent(`${location.pathname}${location.search}`)
 
   return (

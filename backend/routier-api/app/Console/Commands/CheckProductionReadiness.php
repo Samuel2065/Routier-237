@@ -48,6 +48,18 @@ class CheckProductionReadiness extends Command
             $blocking[] = 'MAIL_MAILER=resend sans RESEND_KEY.';
         }
 
+        if (config('broadcasting.default') === 'reverb') {
+            $reverb = (array) config('broadcasting.connections.reverb');
+            if (empty($reverb['key']) || empty($reverb['secret']) || empty($reverb['app_id'])) {
+                $blocking[] = 'BROADCAST_CONNECTION=reverb sans REVERB_APP_ID, REVERB_APP_KEY ou REVERB_APP_SECRET.';
+            }
+            if (($reverb['options']['scheme'] ?? null) !== 'https') {
+                $warnings[] = 'REVERB_SCHEME n\'est pas « https » : le navigateur refusera une connexion temps réel non chiffrée depuis un site HTTPS.';
+            }
+        } elseif (config('broadcasting.default') !== 'null') {
+            $warnings[] = 'BROADCAST_CONNECTION='.config('broadcasting.default').' : temps réel inactif (« reverb » pour l\'activer, « null » pour le désactiver).';
+        }
+
         try {
             DB::connection()->getPdo();
         } catch (Throwable) {

@@ -2,6 +2,7 @@ import { Building2, Landmark, LayoutDashboard, MapPinned, UserRound, UsersRound 
 import { useNavigate } from 'react-router'
 import { BackOfficeLayout, type BackOfficeNavItem } from '@/components/layout/back-office-layout'
 import { useAdminLogout } from '@/features/admin/queries'
+import { useLiveUpdates } from '@/features/realtime/live-updates'
 import { ROLE_LABELS } from '@/lib/labels'
 import { useSession } from '@/store/auth-store'
 
@@ -20,6 +21,8 @@ export function AdminLayout() {
   const session = useSession('admin')
   const navigate = useNavigate()
   const logout = useAdminLogout()
+  // Indicateurs de supervision actualisés en direct.
+  useLiveUpdates('admin', session ? 'admin' : null)
 
   if (!session) return null
   const { user } = session
