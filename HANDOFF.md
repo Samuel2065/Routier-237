@@ -1,4 +1,4 @@
-# Routier+237 — Point de reprise (25/09/2026)
+# Routier+237 — Point de reprise (04/10/2026)
 
 Document de passation pour reprendre le travail dans une nouvelle session sans perte de contexte.
 Référence fonctionnelle : **Cahier des charges Routier+237 v1.0** (PDF fourni par le client).
@@ -31,56 +31,109 @@ backend/routier-api   Laravel 12, PHP 8.2, MySQL/MariaDB (XAMPP), Sanctum (jeton
 
 ## 3. Avancement
 
-### Modules 0 à 12 du cahier des charges : TERMINÉS
-Dernier commit : `26082fd Module 12 : tests, sécurité et validation finale`
-(**non poussé** : `main` est en avance de 1 commit sur `origin/main`).
+### Modules 0 à 12 du cahier des charges : TERMINÉS (commit `26082fd`)
 
 Décision validée par le client : **seul le comptable (accountant)** peut rembourser
 (`payments.refund`) ; le director ne rembourse pas.
 
-### Refonte de l'interface (après le module 12) — NON COMMITÉE
+### Refonte de l'interface : TERMINÉE ET COMMITÉE
 
-Plan : étape 1+2 identité + layouts → étape 3 accueil → correctif photo de profil → étape 4 « Personnel actif ».
+Commits `a0063d0` (tableaux de bord, photo de profil, page d'accueil) et `0a84f37`
+(« Personnel actif » du super-admin, bloc `active_staff` de `GET /api/v1/admin/dashboard`).
+`main` est à jour avec `gitlab/main` (04/10/2026). Les PNG originaux de `src/assets/` ne sont pas
+suivis par Git ; seules les copies WebP de `src/assets/landing/` le sont.
 
-| Étape | Contenu | Statut |
+## 4. Chantier en cours (depuis le 04/10/2026) : sécurité, temps réel, notifications/FCM, Super Admin
+
+Source : prompt client `prompt_routier237_securite_temps_reel_firebase_superadmin.md`.
+Ordre imposé : Phase 0 audit → 1 sécurité → 2 données actualisées → 3 notifications + Firebase →
+4 Super Admin. **Une phase à la fois, tests exécutés, compte rendu (Résumé / Problèmes / Modifications /
+Vérifications / Ce que je dois tester / État), puis arrêt pour feu vert.** Le client débute avec
+Firebase/temps réel : expliquer simplement. Ne jamais demander ni afficher de clé privée ou de fichier
+de compte de service Firebase. Pas de dépendance ni de migration sans justification.
+
+| Phase | Contenu | Statut |
 |---|---|---|
-| 1+2 | Couleur par espace (voyageur bleu, agence vert, admin ambre), sidebar sombre partagée avec compte + déconnexion en bas, barre supérieure (cloche voyageur uniquement, menu du profil), cartes KPI, accueil personnalisé des tableaux de bord, espace voyageur `/account` avec sidebar | ✅ validé par le client |
-| Photo de profil | Backend `users.avatar_path`, `POST/DELETE /api/v1/auth/me/avatar` ; pages « Mon profil » `/account/profile`, `/agency/profile`, `/admin/profile` | ✅ validé |
-| 3 | Nouvelle page d'accueil (hero, recherche, 4 étapes, destinations, agences, avantages, classes, espace agences, FAQ, CTA, pied de page) | ✅ validé |
-| 4 | « Personnel actif » sur le tableau de bord super-admin | ✅ terminé, en attente de validation |
+| 0 | Audit sans modification + plan | ✅ validé (diagnostic confirmé par le client) |
+| 1 | Sécurité et séparation des accès | ✅ terminé le 04/10, **non commité, en attente du test et du feu vert client** |
+| 2 | Données React actualisées sans rechargement | à faire |
+| 3 | Toasts, centre de notifications, Firebase Cloud Messaging | à faire |
+| 4 | Fonctionnalités Super Admin | à faire |
 
-## 4. Étape 4 — « Personnel actif » (terminée, à valider par le client)
+### Constats de la Phase 0 (aucun code modifié)
 
-**Fait (backend)** : `app/Http/Controllers/Api/V1/Admin/DashboardController.php` renvoie un bloc
-`active_staff` dans `GET /api/v1/admin/dashboard` :
+**Backend (solide)** : chaque route privée = `auth:sanctum` + `space:<espace>` + throttle ; le jeton
+porte l'ability de son espace ; `canEnterSpace()` revérifie rôle + statut à chaque requête ; chaque
+action passe par une policy (`Gate::authorize` ou `authorize()` des Form Requests) ; listes filtrées
+par `accessibleBy()` ; un `agency_id` envoyé par le client est vérifié. Aucun trou d'accès trouvé.
+Faiblesses : (a) `SpaceSeparationTest` utilise des routes factices (`/api/test-space/*`), pas les
+vraies routes ; (b) `config/sanctum.php` garde `'guard' => ['web']` : si une session web existait un
+jour, Sanctum fournirait un `TransientToken` dont `can()` vaut toujours vrai (défense en profondeur).
 
-```json
-"active_staff": {
-  "window_minutes": 15,
-  "count": 3,
-  "users": [{ "id": 5, "name": "…", "role": "counter_clerk", "avatar_url": null,
-              "agency": "Agence Bertoua Centre", "organization": "Routier Démo Voyages",
-              "last_active_at": "2026-09-25T14:02:00+01:00" }]
-}
-```
+**Cause probable du problème signalé (« un client accède à l'espace agence »)** — frontend :
+`src/store/auth-store.ts` conserve **plusieurs sessions simultanées** (client, agence, admin) dans
+`localStorage` pendant 7 jours. Se connecter en client ne ferme pas une session agence ouverte avant
+dans le même navigateur ; le lien « Espace agence » du pied de page mène à `/agency/login`, qui
+redirige directement vers le tableau de bord (`pages/agency/login-page.tsx`) avec le jeton de
+l'employé précédent. Les gardes (`require-agency.tsx`, `require-admin.tsx`, `require-customer.tsx`)
+ne vérifient que la présence d'une session, pas le rôle. Les déconnexions ne vident que le cache de
+leur espace ; pas de synchronisation entre onglets. Clé de cache publique `['agency', id]` qui
+partage le préfixe de l'espace agence `['agency', …]`.
 
-Principe : personnel interne (`RoleName::internal()`), compte actif, dont un jeton Sanctum non expiré
-a `last_used_at` dans les 15 dernières minutes (Sanctum met à jour ce champ à chaque requête).
-10 comptes au plus, les plus récents d'abord. Réservé au super_admin (contrôle existant de l'endpoint).
-Les 4 tests existants de `AdminSupervisionTest` passent avec ce bloc.
+**Temps réel** : aucun (pas de Broadcasting/Reverb/Echo/Pusher, `BROADCAST_CONNECTION=log`, pas de
+`config/broadcasting.php`). TanStack Query : `refetchInterval` 60 s (tableaux de bord agence/admin,
+notifications client), interrogation 3 s du paiement en cours, `refetchOnWindowFocus: false`,
+`staleTime` 30 s, invalidations après mutations.
 
-**Fait aussi** (les points ci-dessous sont réalisés : test backend, carte frontend avec état vide, tests Vitest, README) :
-1. Test backend dans `tests/Feature/Admin/AdminSupervisionTest.php` : un employé avec jeton utilisé
-   récemment apparaît ; jeton ancien (> 15 min), jeton expiré, compte suspendu et client n'apparaissent
-   pas ; `count` correct. (Mettre `last_used_at` à la main sur `PersonalAccessToken`.)
-2. Frontend : ajouter `active_staff` au type du tableau de bord admin (`src/types/api.ts`, interface
-   utilisée par `useAdminDashboard` dans `src/features/admin/queries.ts`).
-3. Frontend : section « Personnel actif » dans `src/pages/admin/dashboard-page.tsx` : avatar
-   (`UserAvatar`), nom, rôle (`ROLE_LABELS`), agence/organisation, « actif il y a X min » ;
-   état vide « Aucun membre du personnel actif dans les 15 dernières minutes. » ; indiquer le total.
-4. Test Vitest de cette section, puis `npm run lint`, `npm test`, `npm run build`, `php artisan test`, Pint.
-5. README : ajouter une ligne dans « Décisions et hypothèses (refonte de l'interface) ».
-6. **S'arrêter** et demander la validation du client.
+**Places / anti-surbooking** : calcul serveur (`CreateReservation`, `SELECT … FOR UPDATE`, test de
+concurrence réel). Correct.
+
+**Notifications** : table `notifications` Laravel (canaux `database` + `mail`), **clients
+uniquement** (réservation confirmée/annulée, paiement échoué), endpoints `account/notifications*`.
+Rien pour le personnel ni l'admin. `sonner` (toasts) déjà installé. **Firebase / FCM : absent.**
+
+**Super Admin** : tableau de bord global (+ personnel actif), organisations, agences, directeurs,
+villes, itinéraires, utilisateurs (liste/filtres/détail, suspendre/réactiver, jetons révoqués).
+Manquent : changement de rôle (décision module 11 : non en V1, à reconfirmer), réinitialisation de
+mot de passe (table `password_reset_tokens` présente mais inutilisée), vues globales
+trajets/réservations/paiements, journal d'audit. Le mot de passe n'est jamais renvoyé.
+
+**Tests de référence (04/10/2026)** : backend `php artisan test` 154 OK (1712 assertions) ;
+frontend `npm test` 52 OK ; `npm run lint` OK.
+
+### Phase 1 — réalisée (04/10/2026, non commitée)
+
+Le client a reproduit le bug (même navigateur : client connecté après un employé → espace agence
+ouvert). Décision appliquée : **une seule session par navigateur** (recommandation acceptée en lançant
+la phase). Détails dans le README, « Décisions et hypothèses (sécurité — phase 1) ».
+
+- Backend : `config/sanctum.php` `guard => []` ; `app/Enums/AccessSpace.php` (`fromToken` n'accepte
+  qu'un `PersonalAccessToken`) ; nouveaux tests `tests/Feature/Security/RouteAccessMatrixTest.php`
+  (toutes les vraies routes privées : invité 401, autre espace 403 ; espace attendu déduit du préfixe
+  d'URL, vérifié par mutation : ouvrir `space:agency` aux clients fait échouer le test) et
+  `ResourceIsolationTest.php` (IDOR par HTTP) ; `SpaceSeparationTest` + test `TransientToken`.
+  Aucune migration, aucune dépendance.
+- Frontend : `src/store/auth-store.ts` (session unique, `SPACE_ROLES`, `isSessionValid(space, …)`
+  vérifie le rôle, stockage version 1 qui vide un ancien stockage multi-sessions, `sessionIdentity`) ;
+  `src/lib/session-watch.ts` (vide tout le cache TanStack quand le jeton change, synchro entre onglets
+  via l'événement `storage`) branché dans `App.tsx` ; `src/api/client.ts` (`endsSession` : 401,
+  « Votre accès est désactivé. », « Accès non autorisé depuis cet espace. ») ; déconnexions simplifiées
+  (`features/auth/queries.ts`, `features/agency/session.ts`, `features/admin/queries.ts`) ;
+  `lib/query-keys.ts` (profil public d'agence → `['public-agency', …]`). Tests :
+  `store/auth-store.test.ts`, `lib/session-watch.test.ts`, `features/auth/route-guards.test.tsx`
+  (le scénario signalé échoue avec l'ancien code, vérifié par mutation).
+- Résultats : backend 162 tests OK (2204 assertions), Pint OK ; frontend 68 tests OK (19 fichiers),
+  lint OK, build OK (132,5 Ko gzip).
+
+### Plan des phases suivantes
+
+- **Phase 2** : Laravel Reverb + Echo (justifié en phase 2) ou TanStack seul ; événements sans
+  données sensibles, canaux privés par agence/utilisateur, invalidation ciblée des requêtes.
+- **Phase 3** : notifications pour personnel/admin, toasts automatiques dédupliqués par id de
+  notification, centre de notifications dans les 3 espaces, FCM (table des jetons d'appareil,
+  service worker, VAPID, envoi serveur), étapes Firebase Console guidées pour le client.
+- **Phase 4** : réinitialisation sécurisée du mot de passe, vues globales, rôles et journal d'audit
+  (si validés), recherche/filtres.
 
 ## 5. Fichiers clés de la refonte
 
@@ -119,8 +172,8 @@ Comptes de démo (mot de passe `password`) : `admin@routier237.test` (/admin/log
 `directeur@…`, `manager.bertoua@…`, `guichet.bertoua@…`, `comptable.bertoua@…`, `chauffeur.bertoua@…`,
 `manager.yaounde@…` (/agency/login), `client@routier237.test` (/login). Domaine : `@routier237.test`.
 
-Derniers résultats exécutés : backend **154 tests OK**, Pint OK ; frontend **52 tests OK**, lint OK,
-build OK (bundle principal ≈ 132 Ko gzip).
+Derniers résultats exécutés (04/10/2026, fin de Phase 1) : backend **162 tests OK**, Pint OK ;
+frontend **68 tests OK**, lint OK, build OK (bundle principal ≈ 132,5 Ko gzip).
 
 ## 7. Limites connues (ne pas inventer)
 

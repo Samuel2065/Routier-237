@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { loginCustomer, logoutCustomer, registerCustomer, type LoginPayload, type RegisterPayload } from '@/api/auth'
 import { useAuthStore } from '@/store/auth-store'
 import type { AuthPayload } from '@/types/api'
@@ -30,8 +30,6 @@ export function useCustomerRegister() {
  * même si l'API est injoignable (le jeton expirera de lui-même).
  */
 export function useCustomerLogout() {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: async () => {
       try {
@@ -40,9 +38,7 @@ export function useCustomerLogout() {
         // Session locale fermée dans tous les cas.
       }
     },
-    onSettled: () => {
-      useAuthStore.getState().clearSession('customer')
-      queryClient.removeQueries({ queryKey: ['account'] })
-    },
+    // Le cache est vidé par la surveillance de session (lib/session-watch).
+    onSettled: () => useAuthStore.getState().clearSession('customer'),
   })
 }

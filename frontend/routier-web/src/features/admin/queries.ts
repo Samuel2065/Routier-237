@@ -51,7 +51,6 @@ export function useAdminLogin() {
 }
 
 export function useAdminLogout() {
-  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
       try {
@@ -60,10 +59,8 @@ export function useAdminLogout() {
         // Session locale fermée dans tous les cas.
       }
     },
-    onSettled: () => {
-      useAuthStore.getState().clearSession('admin')
-      queryClient.removeQueries({ queryKey: ['admin'] })
-    },
+    // Le cache est vidé par la surveillance de session (lib/session-watch).
+    onSettled: () => useAuthStore.getState().clearSession('admin'),
   })
 }
 

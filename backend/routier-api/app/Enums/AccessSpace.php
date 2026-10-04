@@ -3,6 +3,7 @@
 namespace App\Enums;
 
 use App\Models\User;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * Espaces d'accès de l'application (cahier des charges §4).
@@ -25,12 +26,15 @@ enum AccessSpace: string
     /**
      * Espace pour lequel le jeton courant de l'utilisateur a été émis.
      * Aucun jeton n'est émis avec l'ability « * ».
+     *
+     * Seul un jeton enregistré (PersonalAccessToken) ouvre un espace : un TransientToken
+     * (authentification par session) répond oui à toutes les abilities et est donc refusé.
      */
     public static function fromToken(User $user): ?self
     {
         $token = $user->currentAccessToken();
 
-        if ($token === null) {
+        if (! $token instanceof PersonalAccessToken) {
             return null;
         }
 

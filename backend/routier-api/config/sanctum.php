@@ -37,7 +37,10 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    // Routier+237 : jetons Bearer uniquement. Aucune session web n'est acceptée sur l'API :
+    // un utilisateur authentifié par session recevrait un TransientToken dont can() vaut
+    // toujours vrai, ce qui contournerait la séparation des espaces (middleware « space »).
+    'guard' => [],
 
     /*
     |--------------------------------------------------------------------------

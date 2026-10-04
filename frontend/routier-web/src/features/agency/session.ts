@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { fetchAgencyProfile, loginAgency, logoutAgency } from '@/api/agency'
 import { useAuthStore, useSession } from '@/store/auth-store'
@@ -15,8 +15,6 @@ export function useAgencyLogin() {
 }
 
 export function useAgencyLogout() {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: async () => {
       try {
@@ -25,10 +23,8 @@ export function useAgencyLogout() {
         // Session locale fermée dans tous les cas.
       }
     },
-    onSettled: () => {
-      useAuthStore.getState().clearSession('agency')
-      queryClient.removeQueries({ queryKey: ['agency'] })
-    },
+    // Le cache est vidé par la surveillance de session (lib/session-watch).
+    onSettled: () => useAuthStore.getState().clearSession('agency'),
   })
 }
 

@@ -429,9 +429,10 @@ puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
   de paiement, suivi du paiement par interrogation de l'API toutes les 3 s).
 - **Critères de recherche dans l'URL** : une recherche est partageable et survit au rechargement.
   Tri (heure, prix) et filtre de classe uniquement : aucun classement subjectif (§18.3).
-- **Sessions** (Zustand persisté dans `localStorage`) : une session par espace (client, agence, admin),
-  un client HTTP par espace. Un 401 (ou un compte désactivé) ferme la session locale. Les gardes de
-  routes ne sont qu'un confort : l'API reste seule juge des droits.
+- **Sessions** (Zustand persisté dans `localStorage`) : un client HTTP par espace (client, agence,
+  admin) ; **une seule session à la fois** depuis la phase de sécurité (voir plus bas). Un 401 (ou un
+  compte désactivé) ferme la session locale. Les gardes de routes ne sont qu'un confort : l'API reste
+  seule juge des droits.
 - **Validation** : Zod côté interface (règles alignées sur l'API) pour un retour immédiat ; les erreurs
   422 de Laravel sont reportées sous les champs, les refus métier (409, 503) affichés tels quels.
   Messages de validation de l'API traduits en français (`lang/fr/validation.php`).
@@ -541,3 +542,29 @@ puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
   minutes (`personal_access_tokens.last_used_at`, mis à jour par Sanctum à chaque requête). 10 comptes
   au plus, sans e-mail ni téléphone ; nombre total affiché. Une déconnexion révoque le jeton et retire
   la personne de la liste ; une fenêtre fermée sans déconnexion reste « active » jusqu'à 15 minutes.
+
+## Décisions et hypothèses (sécurité — phase 1, octobre 2026)
+
+- **Problème corrigé** : le navigateur conservait en même temps une session client, agence et admin.
+  Un client connecté après un employé sur le même poste ouvrait l'espace agence avec le jeton de
+  l'employé resté en mémoire (l'API, elle, refusait bien le jeton client).
+- **Une seule session par navigateur** : se connecter dans un espace ferme les autres
+  (`setSession` dans `src/store/auth-store.ts`). Un ancien stockage contenant plusieurs sessions est
+  vidé au chargement (version 1 du stockage). Un employé qui réserve aussi comme voyageur se déconnecte
+  ou utilise une fenêtre de navigation privée.
+- **Gardes de routes** : une session n'est acceptée que si le rôle de l'utilisateur appartient à
+  l'espace (`SPACE_ROLES`, miroir de `AccessSpace::allowedRoles()`), en plus de la présence et de
+  l'expiration du jeton.
+- **Cache vidé à chaque changement de compte** (`src/lib/session-watch.ts`) : connexion, déconnexion,
+  changement de compte ou session refusée par l'API suppriment toutes les requêtes en cache. Une simple
+  mise à jour du profil ne vide rien. Connexion et déconnexion sont répercutées dans les autres onglets.
+- **Refus de l'API** : 401, « Votre accès est désactivé. » et « Accès non autorisé depuis cet espace. »
+  ferment la session locale ; les autres 403 (permission manquante pour une action) la laissent ouverte.
+- **Sanctum en jetons Bearer uniquement** (`config/sanctum.php`, `guard => []`) et
+  `AccessSpace::fromToken()` n'accepte qu'un jeton enregistré : une authentification par session
+  (`TransientToken`, qui accepte toutes les abilities) n'ouvre aucun espace.
+- **Tests** : `RouteAccessMatrixTest` appelle chaque route privée réellement enregistrée sans jeton
+  (401) puis avec le jeton de chaque autre espace (403) ; l'espace attendu est déduit du préfixe
+  d'URL (`account/`, `agency/`, `admin/`), indépendamment du middleware déclaré, et toute nouvelle
+  route est couverte automatiquement. `ResourceIsolationTest` vérifie par HTTP les accès par
+  identifiant (autre client, autre agence, autre organisation, permission manquante, compte suspendu).

@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\AccessSpace;
 use App\Enums\RoleName;
 use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\TransientToken;
 use Tests\Concerns\CreatesUsers;
 use Tests\TestCase;
 
@@ -64,6 +66,19 @@ class SpaceSeparationTest extends TestCase
 
         $this->app['auth']->forgetGuards();
         $this->withoutToken()->getJson('/api/v1/auth/me')->assertUnauthorized()->assertExactJson(['message' => 'Authentification requise.']);
+    }
+
+    /**
+     * Une authentification par session (TransientToken, qui accepte toutes les abilities)
+     * n'ouvre aucun espace : seuls les jetons Bearer enregistrés sont acceptés.
+     */
+    public function test_session_authentication_never_opens_a_space(): void
+    {
+        $this->assertSame([], config('sanctum.guard'));
+
+        $user = $this->superAdmin()->withAccessToken(new TransientToken);
+
+        $this->assertNull(AccessSpace::fromToken($user));
     }
 
     public function test_guests_cannot_open_private_spaces(): void

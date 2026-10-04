@@ -7,8 +7,19 @@ const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replac
 export const API_BASE_URL = `${API_URL}/api/v1`
 
 /**
+ * Refus de l'API qui invalident la session locale : jeton absent, expiré ou révoqué (401),
+ * compte désactivé, ou jeton émis pour un autre espace (403 du middleware « space »).
+ * Les autres 403 (permission manquante pour une action) laissent la session ouverte.
+ */
+export const SESSION_ENDING_403_MESSAGES = ['Votre accès est désactivé.', 'Accès non autorisé depuis cet espace.']
+
+export function endsSession(status: number | undefined, message: string | undefined): boolean {
+  return status === 401 || (status === 403 && !!message && SESSION_ENDING_403_MESSAGES.includes(message))
+}
+
+/**
  * Client HTTP d'un espace : ajoute le jeton de cet espace et ferme la session
- * locale si l'API la refuse (jeton expiré, révoqué ou compte désactivé).
+ * locale si l'API la refuse (voir endsSession).
  */
 function createApiClient(space?: Space): AxiosInstance {
   const instance = axios.create({
@@ -31,7 +42,7 @@ function createApiClient(space?: Space): AxiosInstance {
       (error) => {
         const status = error?.response?.status
         const message: string | undefined = error?.response?.data?.message
-        if (status === 401 || (status === 403 && message === 'Votre accès est désactivé.')) {
+        if (endsSession(status, message)) {
           useAuthStore.getState().clearSession(space)
         }
         return Promise.reject(error)
