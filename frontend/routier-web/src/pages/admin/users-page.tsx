@@ -1,4 +1,4 @@
-import { Ban, RotateCcw, UsersRound } from 'lucide-react'
+import { Ban, Eye, RotateCcw, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { ConfirmDialog, type ConfirmRequest } from '@/components/common/confirm-dialog'
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAdminUsers, useUpdateUserStatus } from '@/features/admin/queries'
+import { AdminUserSheet } from '@/features/admin/user-sheet'
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback'
 import { useUrlFilters } from '@/hooks/use-url-filters'
 import { getErrorMessage } from '@/lib/api-error'
@@ -35,6 +36,7 @@ export function AdminUsersPage() {
   const updateStatus = useUpdateUserStatus()
   const setSearch = useDebouncedCallback((value: string) => filters.set('search', value.trim()))
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  const [detailId, setDetailId] = useState<number | null>(null)
 
   const askStatusChange = (user: AdminUser) => {
     const suspend = user.status === 'active'
@@ -57,7 +59,10 @@ export function AdminUsersPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Utilisateurs" description="Clients et personnel. Les rôles du personnel se gèrent dans l'espace agence de chaque organisation." />
+      <PageHeader
+        title="Utilisateurs"
+        description="Clients et personnel : fiche détaillée, suspension et lien de réinitialisation du mot de passe. Les rôles du personnel se gèrent dans l'espace agence de chaque organisation."
+      />
 
       <div className="flex flex-wrap items-end gap-3" role="search" aria-label="Filtrer les utilisateurs">
         <div className="grid gap-1.5">
@@ -112,7 +117,7 @@ export function AdminUsersPage() {
                   <TableHead className="hidden md:table-cell">Rattachement</TableHead>
                   <TableHead className="hidden lg:table-cell">Inscrit le</TableHead>
                   <TableHead>Statut</TableHead>
-                  <TableHead className="w-32">
+                  <TableHead className="w-56">
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
@@ -143,12 +148,18 @@ export function AdminUsersPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {!self && (
-                          <Button variant="outline" size="sm" onClick={() => askStatusChange(user)}>
-                            {user.status === 'active' ? <Ban aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
-                            {user.status === 'active' ? 'Suspendre' : 'Réactiver'}
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => setDetailId(user.id)} aria-label={`Détails du compte de ${user.name}`}>
+                            <Eye aria-hidden="true" />
+                            Détails
                           </Button>
-                        )}
+                          {!self && (
+                            <Button variant="outline" size="sm" onClick={() => askStatusChange(user)}>
+                              {user.status === 'active' ? <Ban aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
+                              {user.status === 'active' ? 'Suspendre' : 'Réactiver'}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -161,6 +172,7 @@ export function AdminUsersPage() {
       )}
 
       <ConfirmDialog request={confirm} pending={updateStatus.isPending} onClose={() => setConfirm(null)} />
+      <AdminUserSheet userId={detailId} currentAdminId={session?.user.id} onClose={() => setDetailId(null)} />
     </div>
   )
 }

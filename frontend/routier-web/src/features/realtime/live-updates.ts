@@ -44,7 +44,8 @@ export function queryKeysFor(scope: LiveScope, payload: LivePayload): QueryKey[]
       if (has('notifications')) keys.push(['agency', 'notifications'])
       break
     case 'admin':
-      if (has('dashboard')) keys.push(['admin', 'dashboard'])
+      // Tout changement de la plateforme : indicateurs et listes de supervision.
+      if (has('dashboard')) keys.push(['admin', 'dashboard'], ['admin', 'activity'])
       break
     case 'public':
       if (has('availability')) {

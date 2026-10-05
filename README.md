@@ -135,6 +135,10 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | admin   | `POST admin/organizations/{id}/directors`                 | super_admin                 |
 | admin   | `GET/POST admin/agencies`, `GET/PATCH admin/agencies/{id}` | super_admin                |
 | admin   | `POST admin/cities`, `PATCH admin/cities/{id}`            | super_admin                 |
+| admin   | `GET admin/users/{id}` (détail : permissions du rôle, sessions, dernière activité), `POST admin/users/{id}/password-reset` (envoi d'un lien) | super_admin |
+| admin   | `GET admin/trips`, `GET admin/reservations`, `GET admin/payments` (`?organization_id=&agency_id=&status=`…), lecture seule | super_admin |
+| admin   | `GET admin/audit-logs` (`?action=&search=&subject_type=&subject_id=&actor_id=&date_from=&date_to=`) | super_admin |
+| public  | `POST auth/forgot-password` (`email`), `POST auth/reset-password` (`token`, `email`, `password`, `password_confirmation`) | tous (limité à 5/min) |
 | public  | `GET travel-classes`                                      | tous                        |
 | public  | `GET trips/search?departure_city_id=&destination_city_id=&date=` (+ `passengers`, `travel_class_id`, `sort=departure\|price`) | tous |
 | public  | `GET trips/{id}` (détail, champ `bookable`), `GET agencies/{id}/trips` | tous          |
@@ -687,3 +691,34 @@ puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
   strict, navigateurs intégrés) peuvent refuser le push ; une notification système n'apparaît pas si
   le navigateur est entièrement fermé sur ordinateur. Le centre de notifications reste la référence.
 - `php artisan routier:check-production` signale un `FCM_ENABLED=true` sans fichier de compte de service.
+
+## Décisions et hypothèses (Super Admin — phase 4, octobre 2026)
+
+- **Rôles** (décision du client, confirmée) : le super_admin **ne change pas** les rôles ; il les
+  consulte avec les permissions qui en découlent (fiche d'un compte, lecture seule). Les rôles du
+  personnel restent gérés dans l'espace agence. Pas de permission individuelle par compte.
+- **Mots de passe** : jamais affichés, jamais renvoyés par l'API, jamais journalisés, aucune
+  fonction de récupération. Réinitialisation par le mécanisme Laravel (`password_reset_tokens`) :
+  lien à usage unique valable 60 minutes envoyé à l'adresse du compte, soit par le super_admin
+  (fiche du compte, avec confirmation ; pas pour son propre compte), soit par « Mot de passe
+  oublié ? » sur les trois pages de connexion. La personne choisit elle-même le nouveau mot de
+  passe ; toutes ses sessions (et appareils push) sont alors fermées. La demande publique répond
+  toujours le même message (aucune énumération des comptes) ; une demande par minute et par compte.
+  E-mail en français (`lang/fr/passwords.php`, `lang/fr.json` pour les textes standard des e-mails),
+  lien vers la page React `/reset-password` (première URL de `FRONTEND_URL`).
+- **Supervision de l'activité** (`/admin/activity`) : trajets, réservations et paiements de toutes
+  les organisations, **en lecture seule**, filtrables par organisation, statut, dates, référence.
+  Données personnelles réduites : le client n'apparaît que par son nom (ni contact ni passagers) et
+  le numéro du payeur est masqué (deux derniers chiffres). Annuler ou rembourser reste aux agences.
+- **Journal d'audit** (table `audit_logs`, migration justifiée, `/admin/audit`) : auteur, action,
+  élément visé, détails non sensibles (champs modifiés, ancien et nouveau statut, rôle, montant),
+  adresse IP, date. Écriture seule depuis l'application ; aucune modification ni suppression par
+  l'API ; les clés sensibles (mot de passe, jeton, secret) sont refusées par `AuditLog::record`.
+  Actions journalisées : comptes (suspension, réactivation, lien envoyé, demande « oublié »,
+  réinitialisation effectuée), organisations et agences (création, modification, suspension,
+  réactivation, paramètres), création d'un directeur, personnel (création, modification avec
+  indication « mot de passe changé » sans valeur), annulation d'une réservation par l'agence,
+  remboursement, annulation d'un trajet.
+- **Fiche d'un compte** : rattachement, rôle et permissions, statut, dernière activité, sessions
+  ouvertes, appareils push, dernières actions du journal le concernant.
+- Les statistiques globales restent celles du tableau de bord existant (aucun indicateur inventé).

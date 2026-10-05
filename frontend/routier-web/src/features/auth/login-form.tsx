@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, LogIn } from 'lucide-react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router'
 import { FormField } from '@/components/common/form-field'
 import { fieldAria } from '@/lib/field-aria'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -47,6 +48,9 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       <FormField id="password" label="Mot de passe" error={errors.password?.message}>
         <Input type="password" autoComplete="current-password" {...fieldAria('password', errors.password?.message)} {...register('password')} />
       </FormField>
+      <Link to="/forgot-password" className="-mt-2 justify-self-end text-sm text-primary underline-offset-4 hover:underline">
+        Mot de passe oublié ?
+      </Link>
 
       <Button type="submit" size="lg" className="h-9" disabled={login.isPending}>
         {login.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LogIn aria-hidden="true" />}

@@ -6,6 +6,7 @@ use App\Actions\Organizations\CreateDirector;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organizations\StoreDirectorRequest;
 use App\Http\Resources\UserResource;
+use App\Models\AuditLog;
 use App\Models\Organization;
 use Illuminate\Http\JsonResponse;
 
@@ -17,6 +18,7 @@ class DirectorController extends Controller
     public function store(StoreDirectorRequest $request, Organization $organization, CreateDirector $createDirector): JsonResponse
     {
         $director = $createDirector->handle($organization, $request->validated());
+        AuditLog::record('director.created', $director, ['organization_id' => $organization->id]);
 
         return (new UserResource($director->load(['roles.permissions', 'permissions', 'organization'])))
             ->response()

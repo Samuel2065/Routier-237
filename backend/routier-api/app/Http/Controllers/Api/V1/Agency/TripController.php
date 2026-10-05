@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Trips\StoreTripRequest;
 use App\Http\Requests\Trips\UpdateTripRequest;
 use App\Http\Resources\TripResource;
+use App\Models\AuditLog;
 use App\Models\Trip;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -116,7 +117,10 @@ class TripController extends Controller
     {
         Gate::authorize('cancel', $trip);
 
-        return $this->transition($trip, TripStatus::Cancelled);
+        $resource = $this->transition($trip, TripStatus::Cancelled);
+        AuditLog::record('trip.cancelled', $trip, ['agency_id' => $trip->agency_id]);
+
+        return $resource;
     }
 
     public function complete(Trip $trip): TripResource

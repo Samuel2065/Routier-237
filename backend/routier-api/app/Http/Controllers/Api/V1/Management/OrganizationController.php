@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Organizations\StoreOrganizationRequest;
 use App\Http\Requests\Organizations\UpdateOrganizationRequest;
 use App\Http\Resources\OrganizationResource;
+use App\Models\AuditLog;
 use App\Models\Organization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class OrganizationController extends Controller
     public function store(StoreOrganizationRequest $request, CreateOrganization $createOrganization): JsonResponse
     {
         $organization = $createOrganization->handle($request->validated());
+        AuditLog::record('organization.created', $organization);
 
         return (new OrganizationResource($organization))->response()->setStatusCode(201);
     }
@@ -56,6 +58,7 @@ class OrganizationController extends Controller
     public function update(UpdateOrganizationRequest $request, Organization $organization): OrganizationResource
     {
         $organization->update($request->validated());
+        AuditLog::recordUpdate('organization', $organization);
 
         return new OrganizationResource($this->loadDetails($organization));
     }

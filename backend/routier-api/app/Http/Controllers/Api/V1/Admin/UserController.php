@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AdminUserResource;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -57,7 +58,16 @@ class UserController extends Controller
     {
         Gate::authorize('view', $user);
 
-        return new AdminUserResource($user->load(self::RELATIONS));
+        $user->load([...self::RELATIONS, 'roles.permissions', 'permissions'])
+            ->loadMax('tokens', 'last_used_at')
+            ->loadCount([
+                'tokens as active_sessions_count' => fn ($tokens) => $tokens->where(
+                    fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()),
+                ),
+                'deviceTokens',
+            ]);
+
+        return new AdminUserResource($user);
     }
 
     /**
@@ -74,6 +84,7 @@ class UserController extends Controller
         DB::transaction(function () use ($user, $data) {
             $user->status = UserStatus::from($data['status']);
             $user->save();
+            AuditLog::recordUpdate('user', $user);
 
             if ($user->status !== UserStatus::Active) {
                 $user->tokens()->delete();

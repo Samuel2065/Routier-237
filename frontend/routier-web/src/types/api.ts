@@ -330,6 +330,63 @@ export interface AdminUser {
   organization: { id: number; name: string } | null
   agency: { id: number; name: string } | null
   created_at: string
+  /** Détail uniquement (GET admin/users/{id}) : permissions issues du rôle, en lecture seule. */
+  permissions?: string[]
+  last_active_at?: string | null
+  active_sessions?: number
+  push_devices?: number
+}
+
+/** Trajet vu par la supervision : celui de l'espace agence, avec l'organisation. */
+export interface AdminTrip extends Omit<ManagedTrip, 'agency'> {
+  agency: { id: number; name: string; organization?: { id: number; name: string } }
+}
+
+/** Réservation vue par la supervision : client réduit à son nom, sans contact ni passagers. */
+export interface AdminReservation {
+  id: number
+  reference: string
+  status: ReservationStatus
+  passenger_count: number
+  total_amount: number
+  currency: 'XAF'
+  created_at: string
+  confirmed_at: string | null
+  cancelled_at: string | null
+  customer: { id: number; name: string }
+  trip: { id: number; departure_city: string; destination_city: string; departure_date: string; departure_time: string; status: TripStatus }
+  agency: { id: number; name: string }
+  organization: { id: number; name: string }
+}
+
+/** Paiement vu par la supervision : numéro du payeur masqué. */
+export interface AdminPayment {
+  id: number
+  amount: number
+  currency: string
+  method: PaymentMethod
+  provider: string | null
+  status: PaymentStatus
+  transaction_reference: string | null
+  payer_phone: string | null
+  paid_at: string | null
+  failure_reason: string | null
+  requires_refund: boolean
+  created_at: string
+  reservation: { id: number; reference: string; status: ReservationStatus }
+  agency: { id: number; name: string }
+  organization: { id: number; name: string }
+}
+
+/** Entrée du journal d'audit (lecture seule). */
+export interface AuditLogEntry {
+  id: number
+  action: string
+  actor: { id: number | null; name: string; role: RoleName | null } | null
+  subject: { type: string; id: number | null; label: string | null } | null
+  metadata: Record<string, unknown>
+  ip_address: string | null
+  created_at: string
 }
 
 export interface AdminDashboard {

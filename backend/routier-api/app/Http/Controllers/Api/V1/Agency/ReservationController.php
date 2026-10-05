@@ -6,6 +6,7 @@ use App\Actions\Reservations\ChangeReservationStatus;
 use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ReservationResource;
+use App\Models\AuditLog;
 use App\Models\Reservation;
 use App\Notifications\ReservationCancelled;
 use Illuminate\Http\Request;
@@ -63,6 +64,7 @@ class ReservationController extends Controller
         Gate::authorize('cancel', $reservation);
 
         $reservation = $changeStatus->cancel($reservation, byCustomer: false);
+        AuditLog::record('reservation.cancelled_by_agency', $reservation);
         $reservation->user->notify(new ReservationCancelled($reservation, ReservationCancelled::BY_AGENCY));
 
         return new ReservationResource($reservation->load([...self::RELATIONS, 'passengers', 'payments']));

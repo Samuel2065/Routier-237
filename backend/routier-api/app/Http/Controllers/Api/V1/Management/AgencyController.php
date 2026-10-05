@@ -10,6 +10,7 @@ use App\Http\Requests\Agencies\UpdateAgencyRequest;
 use App\Http\Requests\Agencies\UpdateAgencySettingsRequest;
 use App\Http\Resources\AgencyResource;
 use App\Models\Agency;
+use App\Models\AuditLog;
 use App\Models\Organization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,7 @@ class AgencyController extends Controller
         $organization = Organization::findOrFail($request->targetOrganizationId());
 
         $agency = $createAgency->handle($organization, $request->safe()->except('organization_id'));
+        AuditLog::record('agency.created', $agency, ['organization_id' => $organization->id]);
 
         return (new AgencyResource($agency->load(['organization', 'city'])))->response()->setStatusCode(201);
     }
@@ -67,6 +69,7 @@ class AgencyController extends Controller
     public function update(UpdateAgencyRequest $request, Agency $agency): AgencyResource
     {
         $agency->update($request->validated());
+        AuditLog::recordUpdate('agency', $agency);
 
         return new AgencyResource($agency->load(['organization', 'city'])->loadCount(['employeeProfiles', 'vehicles']));
     }
@@ -77,6 +80,7 @@ class AgencyController extends Controller
     public function updateSettings(UpdateAgencySettingsRequest $request, Agency $agency): AgencyResource
     {
         $agency->update($request->validated());
+        AuditLog::recordUpdate('agency_settings', $agency);
 
         return new AgencyResource($agency->load(['organization', 'city']));
     }

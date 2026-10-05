@@ -21,6 +21,7 @@ export function AgencyLoginPage() {
 
   return (
     <BackOfficeLogin
+      space="agency"
       title="Espace agence"
       description="Connexion réservée au personnel des agences."
       icon={Building2}

@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { Loader2, LogIn, type LucideIcon } from 'lucide-react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router'
 import { FormField } from '@/components/common/form-field'
 import { Logo } from '@/components/layout/public-layout'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -14,6 +15,8 @@ import { fieldAria } from '@/lib/field-aria'
 import type { AuthPayload } from '@/types/api'
 
 interface BackOfficeLoginProps {
+  /** Espace de connexion (lien « Mot de passe oublié ? » et retour à cette page). */
+  space: 'agency' | 'admin'
   title: string
   description: string
   icon: LucideIcon
@@ -24,7 +27,7 @@ interface BackOfficeLoginProps {
 /**
  * Page de connexion des espaces privés (agence, administration), hors espace public.
  */
-export function BackOfficeLogin({ title, description, icon: Icon, login, onSuccess }: BackOfficeLoginProps) {
+export function BackOfficeLogin({ space, title, description, icon: Icon, login, onSuccess }: BackOfficeLoginProps) {
   const {
     register,
     handleSubmit,
@@ -67,6 +70,9 @@ export function BackOfficeLogin({ title, description, icon: Icon, login, onSucce
             <FormField id="password" label="Mot de passe" error={errors.password?.message}>
               <Input type="password" autoComplete="current-password" {...fieldAria('password', errors.password?.message)} {...register('password')} />
             </FormField>
+            <Link to={`/forgot-password?space=${space}`} className="-mt-2 justify-self-end text-sm text-primary underline-offset-4 hover:underline">
+              Mot de passe oublié ?
+            </Link>
             <Button type="submit" size="lg" className="h-9" disabled={login.isPending}>
               {login.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LogIn aria-hidden="true" />}
               Se connecter

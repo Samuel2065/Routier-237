@@ -1,7 +1,11 @@
 import { adminApi, publicApi } from '@/api/client'
 import type {
   AdminDashboard,
+  AdminPayment,
+  AdminReservation,
+  AdminTrip,
   AdminUser,
+  AuditLogEntry,
   AuthPayload,
   City,
   Envelope,
@@ -119,6 +123,43 @@ export async function fetchAdminUsers(params: { role?: RoleName; status?: string
 export async function updateAdminUserStatus(id: number, status: 'active' | 'suspended'): Promise<AdminUser> {
   const { data } = await adminApi.patch<Envelope<AdminUser>>(`/admin/users/${id}`, { status })
   return data.data
+}
+
+/** Détail d'un compte : rôle et permissions (lecture seule), sessions et activité. */
+export async function fetchAdminUser(id: number): Promise<AdminUser> {
+  const { data } = await adminApi.get<Envelope<AdminUser>>(`/admin/users/${id}`)
+  return data.data
+}
+
+/**
+ * Envoie à la personne un lien de réinitialisation (60 min, usage unique). L'administrateur
+ * ne voit ni ne choisit jamais le mot de passe.
+ */
+export async function sendPasswordResetLink(id: number): Promise<string> {
+  const { data } = await adminApi.post<{ message: string }>(`/admin/users/${id}/password-reset`)
+  return data.message
+}
+
+/* Supervision de l'activité (lecture seule) et journal d'audit --------------- */
+
+export async function fetchAdminTrips(params: Params = {}): Promise<Paginated<AdminTrip>> {
+  const { data } = await adminApi.get<Paginated<AdminTrip>>('/admin/trips', { params })
+  return data
+}
+
+export async function fetchAdminReservations(params: Params = {}): Promise<Paginated<AdminReservation>> {
+  const { data } = await adminApi.get<Paginated<AdminReservation>>('/admin/reservations', { params })
+  return data
+}
+
+export async function fetchAdminPayments(params: Params = {}): Promise<Paginated<AdminPayment>> {
+  const { data } = await adminApi.get<Paginated<AdminPayment>>('/admin/payments', { params })
+  return data
+}
+
+export async function fetchAuditLogs(params: Params = {}): Promise<Paginated<AuditLogEntry>> {
+  const { data } = await adminApi.get<Paginated<AuditLogEntry>>('/admin/audit-logs', { params })
+  return data
 }
 
 /* Référentiels ----------------------------------------------------------- */

@@ -8,6 +8,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PaymentResource;
+use App\Models\AuditLog;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -62,6 +63,9 @@ class PaymentController extends Controller
     {
         Gate::authorize('refund', $payment);
 
-        return new PaymentResource($refundPayment->handle($payment)->load('reservation'));
+        $payment = $refundPayment->handle($payment);
+        AuditLog::record('payment.refunded', $payment, ['amount' => $payment->amount, 'reservation_id' => $payment->reservation_id]);
+
+        return new PaymentResource($payment->load('reservation'));
     }
 }

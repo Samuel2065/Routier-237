@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Employees\StoreEmployeeRequest;
 use App\Http\Requests\Employees\UpdateEmployeeRequest;
 use App\Http\Resources\EmployeeResource;
+use App\Models\AuditLog;
 use App\Models\EmployeeProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -61,6 +62,7 @@ class EmployeeController extends Controller
             RoleName::from($request->validated('role')),
             $request->validated(),
         );
+        AuditLog::record('employee.created', $employee, ['role' => $request->validated('role'), 'agency_id' => $employee->agency_id]);
 
         return (new EmployeeResource($this->loadDetails($employee)))->response()->setStatusCode(201);
     }
@@ -75,6 +77,14 @@ class EmployeeController extends Controller
     public function update(UpdateEmployeeRequest $request, EmployeeProfile $employee, UpdateEmployee $updateEmployee): EmployeeResource
     {
         $employee = $updateEmployee->handle($employee, $request->validated());
+        // Champs demandés (jamais leur valeur pour le mot de passe).
+        $fields = array_keys($request->validated());
+        AuditLog::record('employee.updated', $employee, array_filter([
+            'fields' => array_values(array_diff($fields, ['password', 'password_confirmation'])),
+            'role' => $request->validated('role'),
+            'status' => $request->validated('status'),
+            'password_changed' => in_array('password', $fields, true) ?: null,
+        ]));
 
         return new EmployeeResource($this->loadDetails($employee->fresh()));
     }

@@ -26,6 +26,9 @@ export const router = createBrowserRouter([
       { path: 'booking/:id', lazy: async () => ({ Component: (await import('@/pages/booking-page')).BookingPage }) },
       { path: 'login', lazy: async () => ({ Component: (await import('@/pages/login-page')).LoginPage }) },
       { path: 'register', lazy: async () => ({ Component: (await import('@/pages/register-page')).RegisterPage }) },
+      // Mot de passe oublié : pour les trois espaces (?space=agency|admin pour le retour à la connexion).
+      { path: 'forgot-password', lazy: async () => ({ Component: (await import('@/pages/password-pages')).ForgotPasswordPage }) },
+      { path: 'reset-password', lazy: async () => ({ Component: (await import('@/pages/password-pages')).ResetPasswordPage }) },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -138,6 +141,8 @@ export const router = createBrowserRouter([
           },
           { path: 'agencies', lazy: async () => ({ Component: (await import('@/pages/admin/agencies-page')).AdminAgenciesPage }) },
           { path: 'users', lazy: async () => ({ Component: (await import('@/pages/admin/users-page')).AdminUsersPage }) },
+          { path: 'activity', lazy: async () => ({ Component: (await import('@/pages/admin/activity-page')).AdminActivityPage }) },
+          { path: 'audit', lazy: async () => ({ Component: (await import('@/pages/admin/audit-page')).AdminAuditPage }) },
           { path: 'referentials', lazy: async () => ({ Component: (await import('@/pages/admin/referentials-page')).AdminReferentialsPage }) },
           { path: 'profile', lazy: async () => ({ Component: (await import('@/pages/profile-page')).AdminProfilePage }) },
           { path: '*', element: <NotFoundPage /> },

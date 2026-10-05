@@ -57,8 +57,8 @@ de compte de service Firebase. Pas de dépendance ni de migration sans justifica
 | 0 | Audit sans modification + plan | ✅ validé (diagnostic confirmé par le client) |
 | 1 | Sécurité et séparation des accès | ✅ validé par le client, commit `49f7584` (GitLab + GitHub) |
 | 2 | Données React actualisées sans rechargement (Reverb) | ✅ commit `232534b` (GitLab + GitHub), **en attente du feu vert pour la Phase 3** |
-| 3 | Toasts, centre de notifications, Firebase Cloud Messaging | 3a ✅ et 3b ✅ terminées le 05/10, **non commitées, en attente du test et du feu vert client** |
-| 4 | Fonctionnalités Super Admin | à faire |
+| 3 | Toasts, centre de notifications, Firebase Cloud Messaging | ✅ commit `7c4b26f` (GitLab + GitHub) |
+| 4 | Fonctionnalités Super Admin | ✅ terminée le 05/10, **non commitée, en attente du test et du feu vert client** |
 
 ### Constats de la Phase 0 (aucun code modifié)
 
@@ -217,10 +217,44 @@ interrogation). Détails : README « Décisions et hypothèses (temps réel — 
 - Résultats : backend 179 tests OK (2384 assertions), Pint OK ; frontend 94 tests OK (23 fichiers),
   lint OK, build OK (Firebase ≈ 57 Ko en morceaux chargés à la demande, bundle principal inchangé).
 
-### Plan des phases suivantes
+Phase 3 validée par le client et commitée : `7c4b26f` (GitLab + GitHub).
 
-- **Phase 4** : réinitialisation sécurisée du mot de passe, vues globales, rôles et journal d'audit
-  (si validés), recherche/filtres.
+### Phase 4 — Super Admin : réalisée (05/10/2026, non commitée, en attente du test client)
+
+Décisions du client : **pas de changement de rôle** par le super_admin (lecture seule des rôles et
+permissions) ; **journal d'audit** oui ; réinitialisation par **l'admin + « Mot de passe oublié ? »**.
+Détails : README « Décisions et hypothèses (Super Admin — phase 4) ».
+
+- Migration : `2026_10_05_000002_create_audit_logs_table` (appliquée sur `routier237_v1`).
+- Backend : `Models/AuditLog.php` (`record`, `recordUpdate`, clés sensibles refusées) branché dans
+  Admin/UserController (suspension), Management/Organization et AgencyController, Admin/DirectorController,
+  Agency/EmployeeController, Agency/ReservationController (annulation), Agency/PaymentController
+  (remboursement), Agency/TripController (annulation) ; `PasswordResetController` (forgot, reset,
+  sendForUser) + `lang/fr/passwords.php` + `lang/fr.json` (textes standard des e-mails) + lien React et
+  e-mail français dans `AppServiceProvider::configurePasswordResets` ; `Admin/ActivityController`
+  (trips, reservations, payments en lecture seule) + `AdminReservationResource`, `AdminPaymentResource`
+  (téléphone masqué) ; `TripResource` (organisation si chargée) ; `Admin/AuditLogController` ;
+  `AdminUserResource` + `UserController::show` (permissions, dernière activité, sessions, appareils).
+- Frontend : `pages/admin/activity-page.tsx` (`/admin/activity`, onglets), `pages/admin/audit-page.tsx`
+  (`/admin/audit`), `features/admin/audit-labels.ts`, `features/admin/user-sheet.tsx` (fiche du compte,
+  envoi du lien) dans `users-page.tsx`, `pages/password-pages.tsx` (`/forgot-password?space=…`,
+  `/reset-password`), liens « Mot de passe oublié ? » (`login-form.tsx`, `back-office-login.tsx` + prop
+  `space`), `features/auth/schemas.ts` (`newPasswordSchema`), `api/admin.ts`, `api/auth.ts`,
+  `features/admin/queries.ts`, `live-updates.ts` (signal admin → listes d'activité), menu admin.
+- Tests : `tests/Feature/Admin/AdminPlatformToolsTest.php` (7) ; `password-pages.test.tsx` (4),
+  `features/admin/admin-tools.test.tsx` (5).
+- Vérification réelle : e-mail de réinitialisation (MAIL_MAILER=log) entièrement en français, lien
+  `http://localhost:5173/reset-password?token=…&email=…` ; endpoints admin testés par HTTP (200).
+- Incident résolu (05/10) : « le tableau de bord admin ne charge pas » = un autre projet
+  (`ecole-la-pepiniere`) servait déjà le port 8000 ; deux `php artisan serve` sur le même port sous
+  Windows → requêtes envoyées au premier. Le client a arrêté l'autre serveur. Pas de bug de code.
+- Résultats : backend 186 tests OK (2495 assertions), Pint OK ; frontend 104 tests OK (25 fichiers),
+  lint OK, build OK.
+
+### Après la phase 4
+
+Toutes les phases du prompt sont réalisées. Prochaines étapes possibles, à décider avec le client :
+mise en production (VPS Hostinger : Supervisor pour Reverb, HTTPS, Resend pour les e-mails).
 
 ## 5. Fichiers clés de la refonte
 
@@ -260,8 +294,11 @@ Comptes de démo (mot de passe `password`) : `admin@routier237.test` (/admin/log
 `directeur@…`, `manager.bertoua@…`, `guichet.bertoua@…`, `comptable.bertoua@…`, `chauffeur.bertoua@…`,
 `manager.yaounde@…` (/agency/login), `client@routier237.test` (/login). Domaine : `@routier237.test`.
 
-Derniers résultats exécutés (05/10/2026, fin de la Phase 3) : backend **179 tests OK**, Pint OK ;
-frontend **94 tests OK**, lint OK, build OK.
+Derniers résultats exécutés (05/10/2026, fin de la Phase 4) : backend **186 tests OK**, Pint OK ;
+frontend **104 tests OK**, lint OK, build OK.
+
+Attention en local : un seul `php artisan serve` sur le port 8000 (un autre projet sur ce port
+intercepte les requêtes : 404 partout). Sinon `php artisan serve --port=8001` + `VITE_API_URL`.
 
 ## 7. Limites connues (ne pas inventer)
 

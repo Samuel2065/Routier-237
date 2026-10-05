@@ -27,6 +27,11 @@ class TripResource extends JsonResource
             'agency' => $this->whenLoaded('agency', fn () => [
                 'id' => $this->agency->id,
                 'name' => $this->agency->name,
+                // Vue de supervision (super_admin) : organisation de l'agence.
+                'organization' => $this->when($this->agency->relationLoaded('organization'), fn () => [
+                    'id' => $this->agency->organization->id,
+                    'name' => $this->agency->organization->name,
+                ]),
             ]),
             'route' => new RouteResource($this->whenLoaded('route')),
             'vehicle' => $this->whenLoaded('vehicle', fn () => [

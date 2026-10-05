@@ -8,12 +8,18 @@ import {
   fetchAdminAgencies,
   fetchAdminDashboard,
   fetchAdminOrganization,
+  fetchAdminPayments,
+  fetchAdminReservations,
   fetchAdminRoutes,
+  fetchAdminTrips,
+  fetchAdminUser,
   fetchAdminUsers,
+  fetchAuditLogs,
   fetchOrganizations,
   loginAdmin,
   logoutAdmin,
   renameCity,
+  sendPasswordResetLink,
   updateAdminAgency,
   updateAdminOrganization,
   updateAdminRoute,
@@ -39,6 +45,10 @@ export const adminKeys = {
   users: (filters: object = {}) => ['admin', 'users', filters] as const,
   usersAll: ['admin', 'users'] as const,
   routes: ['admin', 'routes'] as const,
+  user: (id: number) => ['admin', 'user', id] as const,
+  /** Trajets, réservations et paiements de toute la plateforme (relus à chaque signal « admin »). */
+  activity: (kind: 'trips' | 'reservations' | 'payments', filters: object = {}) => ['admin', 'activity', kind, filters] as const,
+  auditLogs: (filters: object = {}) => ['admin', 'audit-logs', filters] as const,
 }
 
 /* Session ------------------------------------------------------------------ */
@@ -91,6 +101,28 @@ export function useAdminRoutes() {
   return useQuery({ queryKey: adminKeys.routes, queryFn: () => fetchAdminRoutes() })
 }
 
+export function useAdminUser(id: number | null) {
+  return useQuery({ queryKey: adminKeys.user(id ?? 0), queryFn: () => fetchAdminUser(id as number), enabled: !!id })
+}
+
+type Filters = Record<string, string | number | undefined>
+
+export function useAdminTrips(filters: Filters) {
+  return useQuery({ queryKey: adminKeys.activity('trips', filters), queryFn: () => fetchAdminTrips(filters), placeholderData: keepPreviousData, refetchInterval: useLiveFallbackInterval() })
+}
+
+export function useAdminReservations(filters: Filters) {
+  return useQuery({ queryKey: adminKeys.activity('reservations', filters), queryFn: () => fetchAdminReservations(filters), placeholderData: keepPreviousData, refetchInterval: useLiveFallbackInterval() })
+}
+
+export function useAdminPayments(filters: Filters) {
+  return useQuery({ queryKey: adminKeys.activity('payments', filters), queryFn: () => fetchAdminPayments(filters), placeholderData: keepPreviousData, refetchInterval: useLiveFallbackInterval() })
+}
+
+export function useAuditLogs(filters: Filters, enabled = true) {
+  return useQuery({ queryKey: adminKeys.auditLogs(filters), queryFn: () => fetchAuditLogs(filters), placeholderData: keepPreviousData, enabled })
+}
+
 /* Écritures ------------------------------------------------------------------ */
 
 function useInvalidate() {
@@ -129,7 +161,16 @@ export function useUpdateUserStatus() {
   const invalidate = useInvalidate()
   return useMutation({
     mutationFn: ({ id, status }: { id: number; status: 'active' | 'suspended' }) => updateAdminUserStatus(id, status),
-    onSuccess: () => invalidate(adminKeys.usersAll),
+    onSuccess: (user) => invalidate(adminKeys.usersAll, adminKeys.user(user.id), ['admin', 'audit-logs']),
+  })
+}
+
+/** Lien de réinitialisation du mot de passe envoyé à la personne (action journalisée). */
+export function useSendPasswordReset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => sendPasswordResetLink(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] }),
   })
 }
 

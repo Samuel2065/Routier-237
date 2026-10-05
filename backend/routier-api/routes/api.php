@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\V1\Account\PaymentController as AccountPaymentController;
 use App\Http\Controllers\Api\V1\Account\ReservationController as AccountReservationController;
+use App\Http\Controllers\Api\V1\Admin\ActivityController;
+use App\Http\Controllers\Api\V1\Admin\AuditLogController;
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\DirectorController;
@@ -18,6 +20,7 @@ use App\Http\Controllers\Api\V1\Management\AgencyController;
 use App\Http\Controllers\Api\V1\Management\OrganizationController;
 use App\Http\Controllers\Api\V1\Management\RouteController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentWebhookController;
 use App\Http\Controllers\Api\V1\Public\AgencyController as PublicAgencyController;
 use App\Http\Controllers\Api\V1\Public\CityController as PublicCityController;
@@ -44,6 +47,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('auth/login', [AuthController::class, 'loginCustomer'])->name('auth.login');
         Route::post('agency/auth/login', [AuthController::class, 'loginAgency'])->name('agency.auth.login');
         Route::post('admin/auth/login', [AuthController::class, 'loginAdmin'])->name('admin.auth.login');
+        // Mot de passe oublié : lien à usage unique envoyé par e-mail, puis nouveau mot de passe.
+        Route::post('auth/forgot-password', [PasswordResetController::class, 'forgot'])->name('auth.password.forgot');
+        Route::post('auth/reset-password', [PasswordResetController::class, 'reset'])->name('auth.password.reset');
     });
 
     // Consultation publique, sans compte (limitée en fréquence par IP).
@@ -120,6 +126,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::middleware(['auth:sanctum', 'space:admin', 'throttle:authenticated'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('dashboard', AdminDashboardController::class)->name('dashboard');
         Route::apiResource('users', AdminUserController::class)->only(['index', 'show', 'update']);
+        Route::post('users/{user}/password-reset', [PasswordResetController::class, 'sendForUser'])->middleware('throttle:10,1')->name('users.password-reset');
+        // Supervision de l'activité (lecture seule) et journal d'audit.
+        Route::get('trips', [ActivityController::class, 'trips'])->name('trips.index');
+        Route::get('reservations', [ActivityController::class, 'reservations'])->name('reservations.index');
+        Route::get('payments', [ActivityController::class, 'payments'])->name('payments.index');
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         Route::apiResource('organizations', OrganizationController::class)->except(['destroy']);
         Route::post('organizations/{organization}/directors', [DirectorController::class, 'store'])->name('organizations.directors.store');
         Route::apiResource('agencies', AgencyController::class)->except(['destroy']);

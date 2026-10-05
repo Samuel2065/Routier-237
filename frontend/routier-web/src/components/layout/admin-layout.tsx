@@ -1,4 +1,4 @@
-import { Building2, Landmark, LayoutDashboard, MapPinned, UserRound, UsersRound } from 'lucide-react'
+import { Activity, Building2, Landmark, LayoutDashboard, MapPinned, ScrollText, UserRound, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { BackOfficeLayout, type BackOfficeNavItem } from '@/components/layout/back-office-layout'
 import { useAdminLogout } from '@/features/admin/queries'
@@ -11,6 +11,8 @@ const NAV_ITEMS: BackOfficeNavItem[] = [
   { to: '/admin/organizations', label: 'Organisations', icon: Landmark },
   { to: '/admin/agencies', label: 'Agences', icon: Building2 },
   { to: '/admin/users', label: 'Utilisateurs', icon: UsersRound },
+  { to: '/admin/activity', label: 'Activité', icon: Activity },
+  { to: '/admin/audit', label: "Journal d'audit", icon: ScrollText },
   { to: '/admin/referentials', label: 'Villes et itinéraires', icon: MapPinned },
 ]
 

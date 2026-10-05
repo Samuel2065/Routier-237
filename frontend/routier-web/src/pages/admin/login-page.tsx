@@ -20,6 +20,7 @@ export function AdminLoginPage() {
 
   return (
     <BackOfficeLogin
+      space="admin"
       title="Administration"
       description="Accès réservé à l'administration de la plateforme."
       icon={ShieldCheck}
