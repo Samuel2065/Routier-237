@@ -60,6 +60,10 @@ class CheckProductionReadiness extends Command
             $warnings[] = 'BROADCAST_CONNECTION='.config('broadcasting.default').' : temps réel inactif (« reverb » pour l\'activer, « null » pour le désactiver).';
         }
 
+        if (config('services.fcm.enabled') && ! is_readable((string) config('services.fcm.credentials'))) {
+            $blocking[] = 'FCM_ENABLED=true mais le fichier du compte de service Firebase est introuvable (FIREBASE_CREDENTIALS).';
+        }
+
         try {
             DB::connection()->getPdo();
         } catch (Throwable) {

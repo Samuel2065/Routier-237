@@ -188,6 +188,8 @@ class LiveUpdatesTest extends TestCase
 
         $allowed = [
             [$manager, 'agency', "private-agency.$agencyId"],
+            // Canal personnel (notifications) : le compte lui-même, quel que soit son espace.
+            [$manager, 'agency', "private-user.{$manager->id}"],
             [$director, 'agency', "private-agency.$agencyId"],
             [$director, 'agency', "private-organization.$organizationId"],
             [$this->customer, 'customer', "private-user.{$this->customer->id}"],

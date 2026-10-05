@@ -90,6 +90,14 @@ class User extends Authenticatable
         return $this->hasMany(Reservation::class);
     }
 
+    /**
+     * Appareils inscrits aux notifications push (Firebase Cloud Messaging).
+     */
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
     public function hasRoleName(RoleName $role): bool
     {
         return $this->hasRole($role->value);

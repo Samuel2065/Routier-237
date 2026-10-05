@@ -7,6 +7,7 @@ use App\Enums\PaymentStatus;
 use App\Models\Payment;
 use App\Notifications\PaymentFailed;
 use App\Notifications\ReservationConfirmed;
+use App\Notifications\StaffReservationAlert;
 use App\Payments\Data\PaymentResult;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +31,7 @@ class ApplyPaymentResult
     public function handle(PaymentResult $result): Payment
     {
         /** @var Notification|null $notification */
-        [$payment, $notification] = DB::transaction(function () use ($result) {
+        [$payment, $notification, $refundRequired] = DB::transaction(function () use ($result) {
             $payment = Payment::query()
                 ->where('provider', $result->provider)
                 ->where('transaction_reference', $result->reference)
@@ -48,17 +49,24 @@ class ApplyPaymentResult
                 PaymentStatus::Failed, PaymentStatus::Cancelled => $this->markFailed($payment, $result->status, $result->failureReason),
                 default => [$payment, null],
             };
-        });
+        }) + [2 => false];
 
         if ($notification !== null) {
             $payment->reservation->user->notify($notification);
+        }
+
+        // Personnel de l'agence : nouvelle réservation confirmée, ou paiement tardif à rembourser.
+        if ($notification instanceof ReservationConfirmed) {
+            StaffReservationAlert::dispatch($notification->reservation, StaffReservationAlert::CONFIRMED);
+        } elseif ($refundRequired) {
+            StaffReservationAlert::dispatch($payment->reservation, StaffReservationAlert::REFUND_REQUIRED, paid: true);
         }
 
         return $payment;
     }
 
     /**
-     * @return array{0: Payment, 1: Notification|null}
+     * @return array{0: Payment, 1: Notification|null, 2?: bool} 2 : remboursement à prévoir
      */
     private function markPaid(Payment $payment, PaymentResult $result): array
     {
@@ -83,7 +91,7 @@ class ApplyPaymentResult
                 'payment_id' => $payment->id, 'reservation_id' => $payment->reservation_id, 'reason' => $exception->getMessage(),
             ]);
 
-            return [$payment, null];
+            return [$payment, null, true];
         }
 
         return [$payment, new ReservationConfirmed($reservation)];

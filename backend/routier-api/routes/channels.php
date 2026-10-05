@@ -27,8 +27,9 @@ Broadcast::channel('organization.{organizationId}', fn (User $user, string $orga
     && $user->isDirector()
     && $user->canAccessOrganization((int) $organizationId));
 
-// Client : uniquement ses propres réservations, paiements et notifications.
-Broadcast::channel('user.{userId}', fn (User $user, string $userId) => AccessSpace::fromToken($user) === AccessSpace::Customer
+// Canal personnel du compte connecté (client ou personnel) : ses notifications, et pour un
+// client ses réservations et paiements. Jamais celui d'un autre compte.
+Broadcast::channel('user.{userId}', fn (User $user, string $userId) => AccessSpace::fromToken($user) !== null
     && $user->id === (int) $userId);
 
 // Supervision de la plateforme.

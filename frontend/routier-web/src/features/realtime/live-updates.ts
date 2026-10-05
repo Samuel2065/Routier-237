@@ -41,6 +41,7 @@ export function queryKeysFor(scope: LiveScope, payload: LivePayload): QueryKey[]
       if (has('payments')) keys.push(['agency', 'payments'])
       if (has('vehicles')) keys.push(['agency', 'vehicles'])
       if (has('dashboard')) keys.push(['agency', 'dashboard'])
+      if (has('notifications')) keys.push(['agency', 'notifications'])
       break
     case 'admin':
       if (has('dashboard')) keys.push(['admin', 'dashboard'])

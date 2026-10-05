@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Payment;
+use App\Notifications\Channels\PushChannel;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -17,7 +18,7 @@ class PaymentFailed extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', PushChannel::class];
     }
 
     /**
@@ -33,6 +34,18 @@ class PaymentFailed extends Notification
             'reservation_id' => $this->payment->reservation_id,
             'reference' => $reference,
             'message' => "Le paiement de la réservation {$reference} a échoué. Vous pouvez réessayer avant l'expiration de la réservation.",
+        ];
+    }
+
+    /**
+     * @return array{title: string, body: string, link: string}
+     */
+    public function toPush(object $notifiable): array
+    {
+        return [
+            'title' => 'Paiement non abouti',
+            'body' => $this->toArray($notifiable)['message'],
+            'link' => "/account/reservations/{$this->payment->reservation_id}",
         ];
     }
 }

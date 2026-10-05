@@ -107,6 +107,8 @@ export const router = createBrowserRouter([
           },
           // Profil personnel : accessible à tout le personnel, sans permission de section.
           { path: 'profile', lazy: async () => ({ Component: (await import('@/pages/profile-page')).AgencyProfilePage }) },
+          // Centre de notifications : chaque membre du personnel ne voit que les siennes.
+          { path: 'notifications', lazy: async () => ({ Component: (await import('@/pages/agency/notifications-page')).AgencyNotificationsPage }) },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

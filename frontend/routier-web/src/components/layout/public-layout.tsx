@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useCustomerLogout } from '@/features/auth/queries'
+import { NotificationToasts } from '@/features/notifications/notification-toasts'
 import { useNotifications } from '@/features/notifications/queries'
 import { useSession } from '@/store/auth-store'
 
@@ -44,7 +45,7 @@ function CustomerMenu() {
   const session = useSession('customer')
   const navigate = useNavigate()
   const logout = useCustomerLogout()
-  const notifications = useNotifications({}, !!session)
+  const notifications = useNotifications('customer', {}, !!session)
   const unread = notifications.data?.unread_count ?? 0
 
   if (!session) {
@@ -255,8 +256,12 @@ function Footer() {
  * Mise en page de l'espace public (accueil, recherche, trajets, agences, réservation).
  */
 export function PublicLayout() {
+  const session = useSession('customer')
+
   return (
     <div className="flex min-h-svh flex-col">
+      {/* Voyageur connecté : notifications en direct et toasts, aussi sur les pages publiques. */}
+      {session && <NotificationToasts space="customer" userId={session.user.id} />}
       <a
         href="#contenu"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2"

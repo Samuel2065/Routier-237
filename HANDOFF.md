@@ -56,8 +56,8 @@ de compte de service Firebase. Pas de dépendance ni de migration sans justifica
 |---|---|---|
 | 0 | Audit sans modification + plan | ✅ validé (diagnostic confirmé par le client) |
 | 1 | Sécurité et séparation des accès | ✅ validé par le client, commit `49f7584` (GitLab + GitHub) |
-| 2 | Données React actualisées sans rechargement (Reverb) | ✅ terminé le 04/10, **non commité, en attente du test et du feu vert client** |
-| 3 | Toasts, centre de notifications, Firebase Cloud Messaging | à faire |
+| 2 | Données React actualisées sans rechargement (Reverb) | ✅ commit `232534b` (GitLab + GitHub), **en attente du feu vert pour la Phase 3** |
+| 3 | Toasts, centre de notifications, Firebase Cloud Messaging | 3a ✅ et 3b ✅ terminées le 05/10, **non commitées, en attente du test et du feu vert client** |
 | 4 | Fonctionnalités Super Admin | à faire |
 
 ### Constats de la Phase 0 (aucun code modifié)
@@ -127,7 +127,7 @@ la phase). Détails dans le README, « Décisions et hypothèses (sécurité —
 
 Phase 1 validée par le client et commitée : `49f7584`, poussée sur GitLab (`gitlab`) et GitHub (`origin`).
 
-### Phase 2 — réalisée (04/10/2026, non commitée, en attente du test client)
+### Phase 2 — réalisée et commitée (04/10/2026, commit `232534b`, GitLab + GitHub)
 
 Choix du client : **Laravel Reverb + Echo** ; hébergement prévu **Hostinger avec SSH** (Reverb exige
 un VPS : processus permanent + proxy wss ; sur mutualisé → `BROADCAST_CONNECTION=null`, repli par
@@ -159,11 +159,66 @@ interrogation). Détails : README « Décisions et hypothèses (temps réel — 
 - Résultats : backend 169 tests OK (2247 assertions), Pint OK ; frontend 78 tests OK (20 fichiers),
   lint OK, build OK (index 132,6 Ko gzip ; echo 2,8 Ko et pusher 18,1 Ko chargés à la demande).
 
+### Phase 3 — en cours (découpée en 3a puis 3b)
+
+**3a — notifications, centre et toasts : réalisée (04/10/2026, non commitée).** Détails : README
+« Décisions et hypothèses (notifications — phase 3a) ».
+
+- Backend : `app/Notifications/StaffReservationAlert.php` (alertes personnel : confirmée →
+  reservations.view ; annulée par le client → reservations.view, « Paiement à rembourser » si payée ;
+  paiement tardif → payments.refund ; envoi protégé par `rescue`) ; appelée dans
+  `Actions/Payments/ApplyPaymentResult.php` et `Account/ReservationController::cancel` ;
+  contrôleur déplacé en `Http/Controllers/Api/V1/NotificationController.php` (+ `destroy`), routes
+  partagées `$notificationRoutes` dans `routes/api.php` (account/* et agency/*) ;
+  `routes/channels.php` : `user.{id}` ouvert au compte lui-même depuis tout espace.
+  Pas d'alerte admin (aucun événement pertinent pour l'instant). Aucune migration ni dépendance.
+- Frontend : `api/notifications.ts` (par espace + suppression), `features/notifications/queries.ts`
+  (par espace), `notification-meta.ts` (titres, liens, `freshNotifications`), `notification-list.tsx`
+  (titre, lien, supprimer), `notification-toasts.tsx` (canal personnel + toasts sonner dédupliqués
+  par id), branché dans `customer-layout`, `agency-layout` (cloche + menu), `public-layout` (client
+  connecté) ; page `pages/agency/notifications-page.tsx` + route `/agency/notifications` ;
+  `lib/realtime.ts` (`user.*` autorisé avec la session ouverte) ; `live-updates.ts` (sujet
+  notifications côté agence) ; types `NotificationType`.
+- Tests : `tests/Feature/Notifications/StaffNotificationTest.php` (4) ; `notifications.test.tsx` (6) ;
+  tests de layouts et du temps réel mis à jour (la cloche existe désormais côté agence).
+- Défaut corrigé en cours de route : sans `rescue`, une alerte en erreur (rôle absent) aurait fait
+  échouer la confirmation d'un paiement par webhook (détecté par `PaymentWebhookTest`).
+- Résultats : backend 173 tests OK (2333 assertions), Pint OK ; frontend 86 tests OK (21 fichiers),
+  lint OK, build OK.
+
+**3b — Firebase Cloud Messaging : réalisée (05/10/2026, non commitée).** Détails : README
+« Décisions et hypothèses (notifications push — phase 3b) ».
+
+- Projet Firebase du client : `routier237-c8990`. Compte de service déposé par le client puis renommé
+  en `backend/routier-api/storage/app/private/firebase-credentials.json` (ignoré par Git, vérifié :
+  type service_account, bon projet ; jamais affiché). Config web publique + clé VAPID dans le `.env`
+  local du frontend (`VITE_FIREBASE_*`) ; `FCM_ENABLED=true` dans le `.env` local du backend.
+- Dépendances : `google/auth` ^1.55 (composer) ; `firebase` ^12.19 (npm, chargé à la demande ;
+  le service worker charge les scripts compat 12.19.0 depuis gstatic — garder la même version).
+  `npm audit` : `@grpc/grpc-js` via Firestore (Node, non utilisé, absent du build) — non corrigé
+  (le « correctif » npm rétrograderait vers Firebase 9).
+- Migration : `2026_10_05_000001_create_device_tokens_table` (FK user + personal_access_token en
+  cascade). Appliquée sur `routier237_v1`.
+- Backend : `Models/DeviceToken.php`, `User::deviceTokens()`, `Http/Controllers/Api/V1/PushTokenController.php`
+  (`POST/DELETE auth/push-tokens`), `Support/Push/{AccessTokenProvider, GoogleAccessTokenProvider,
+  FcmClient}.php`, `Jobs/SendPushNotification.php` (afterResponse, purge des jetons invalides),
+  `Notifications/Channels/PushChannel.php` + `toPush()` dans les 4 notifications, `config/services.php`
+  (`fcm`), `AppServiceProvider` (liaison), `routier:check-production` (fichier manquant = bloquant),
+  `phpunit.xml` (`FCM_ENABLED=false`), `.env.example`.
+- Frontend : `public/firebase-messaging-sw.js` (affichage en arrière-plan, `tag` = id, clic → message à
+  l'onglet ou nouvel onglet), `src/lib/push.ts` (support, opt-in par compte, enable/disable/sync,
+  premier plan, clics), `features/notifications/use-push-notifications.ts` (branché dans
+  `NotificationToasts`), `push-notifications-card.tsx` (dans `/account` et `/agency/notifications`),
+  `.env.example`, `vite.config.ts` (tests sans Firebase).
+- Vérification réelle : jeton d'accès Google obtenu avec le compte de service ; l'API FCM accepte
+  l'authentification et classe un jeton bidon en `invalid_token`. Envoi vers un vrai navigateur :
+  **à tester par le client** (nécessite son accord de permission).
+- Tests : `tests/Feature/Notifications/PushNotificationTest.php` (6) ; `push.test.tsx` (6), `lib/push.test.ts` (2).
+- Résultats : backend 179 tests OK (2384 assertions), Pint OK ; frontend 94 tests OK (23 fichiers),
+  lint OK, build OK (Firebase ≈ 57 Ko en morceaux chargés à la demande, bundle principal inchangé).
+
 ### Plan des phases suivantes
 
-- **Phase 3** : notifications pour personnel/admin, toasts automatiques dédupliqués par id de
-  notification, centre de notifications dans les 3 espaces, FCM (table des jetons d'appareil,
-  service worker, VAPID, envoi serveur), étapes Firebase Console guidées pour le client.
 - **Phase 4** : réinitialisation sécurisée du mot de passe, vues globales, rôles et journal d'audit
   (si validés), recherche/filtres.
 
@@ -205,8 +260,8 @@ Comptes de démo (mot de passe `password`) : `admin@routier237.test` (/admin/log
 `directeur@…`, `manager.bertoua@…`, `guichet.bertoua@…`, `comptable.bertoua@…`, `chauffeur.bertoua@…`,
 `manager.yaounde@…` (/agency/login), `client@routier237.test` (/login). Domaine : `@routier237.test`.
 
-Derniers résultats exécutés (04/10/2026, fin de Phase 2) : backend **169 tests OK**, Pint OK ;
-frontend **78 tests OK**, lint OK, build OK (bundle principal ≈ 132,6 Ko gzip).
+Derniers résultats exécutés (05/10/2026, fin de la Phase 3) : backend **179 tests OK**, Pint OK ;
+frontend **94 tests OK**, lint OK, build OK.
 
 ## 7. Limites connues (ne pas inventer)
 

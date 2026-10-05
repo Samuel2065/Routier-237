@@ -1,31 +1,44 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/notifications'
+import {
+  deleteNotification,
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type NotificationSpace,
+} from '@/api/notifications'
 import { queryKeys } from '@/lib/query-keys'
 import { useLiveFallbackInterval } from '@/lib/realtime'
 
-export function useNotifications(params: { unread?: boolean; page?: number } = {}, enabled = true) {
+/**
+ * Centre de notifications d'un espace (client ou agence). L'API reste la source de vérité :
+ * lu, tout lu et suppression sont enregistrés côté serveur, puis la liste est relue.
+ */
+export function useNotifications(space: NotificationSpace, params: { unread?: boolean; page?: number } = {}, enabled = true) {
   return useQuery({
-    queryKey: queryKeys.notifications(params),
-    queryFn: () => fetchNotifications(params),
+    queryKey: queryKeys.spaceNotifications(space, params),
+    queryFn: () => fetchNotifications(space, params),
     enabled,
     refetchInterval: useLiveFallbackInterval(),
   })
 }
 
-export function useMarkNotificationRead() {
+function useNotificationMutation<T>(space: NotificationSpace, mutationFn: (variables: T) => Promise<void>) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => markNotificationRead(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notificationsAll }),
+    mutationFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.spaceNotificationsAll(space) }),
   })
 }
 
-export function useMarkAllNotificationsRead() {
-  const queryClient = useQueryClient()
+export function useMarkNotificationRead(space: NotificationSpace) {
+  return useNotificationMutation(space, (id: string) => markNotificationRead(space, id))
+}
 
-  return useMutation({
-    mutationFn: markAllNotificationsRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notificationsAll }),
-  })
+export function useMarkAllNotificationsRead(space: NotificationSpace) {
+  return useNotificationMutation(space, () => markAllNotificationsRead(space))
+}
+
+export function useDeleteNotification(space: NotificationSpace) {
+  return useNotificationMutation(space, (id: string) => deleteNotification(space, id))
 }

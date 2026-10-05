@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { BackOfficeLayout, type BackOfficeNavItem } from '@/components/layout/back-office-layout'
 import { useCustomerLogout } from '@/features/auth/queries'
 import { useNotifications } from '@/features/notifications/queries'
-import { useLiveUpdates } from '@/features/realtime/live-updates'
+import { NotificationToasts } from '@/features/notifications/notification-toasts'
 import { ROLE_LABELS } from '@/lib/labels'
 import { useSession } from '@/store/auth-store'
 
@@ -26,29 +26,31 @@ export function CustomerLayout() {
   const session = useSession('customer')
   const navigate = useNavigate()
   const logout = useCustomerLogout()
-  const notifications = useNotifications({}, !!session)
-  // Réservations, paiements et notifications du voyageur actualisés en direct.
-  useLiveUpdates('customer', session ? `user.${session.user.id}` : null)
+  const notifications = useNotifications('customer', {}, !!session)
 
   if (!session) return null
   const { user } = session
 
   return (
-    <BackOfficeLayout
-      space="customer"
-      spaceLabel="Espace voyageur"
-      homePath="/account"
-      profilePath="/account/profile"
-      navItems={NAV_ITEMS}
-      scopeLabel="Mon espace voyageur"
-      user={{ name: user.name, email: user.email, roleLabel: ROLE_LABELS.customer, avatarUrl: user.avatar_url }}
-      menuItems={MENU_ITEMS}
-      notifications={{ unread: notifications.data?.unread_count ?? 0, to: '/account#notifications' }}
-      onLogout={() => {
-        // Retour à l'accueil d'abord : la garde de l'espace client redirigerait vers /login.
-        navigate('/')
-        logout.mutate()
-      }}
-    />
+    <>
+      {/* Réservations, paiements et notifications du voyageur en direct, avec toasts. */}
+      <NotificationToasts space="customer" userId={user.id} />
+      <BackOfficeLayout
+        space="customer"
+        spaceLabel="Espace voyageur"
+        homePath="/account"
+        profilePath="/account/profile"
+        navItems={NAV_ITEMS}
+        scopeLabel="Mon espace voyageur"
+        user={{ name: user.name, email: user.email, roleLabel: ROLE_LABELS.customer, avatarUrl: user.avatar_url }}
+        menuItems={MENU_ITEMS}
+        notifications={{ unread: notifications.data?.unread_count ?? 0, to: '/account#notifications' }}
+        onLogout={() => {
+          // Retour à l'accueil d'abord : la garde de l'espace client redirigerait vers /login.
+          navigate('/')
+          logout.mutate()
+        }}
+      />
+    </>
   )
 }

@@ -164,10 +164,20 @@ export interface Paginated<T> {
   meta: PaginationMeta
 }
 
+export type NotificationType =
+  // Voyageur
+  | 'reservation_confirmed'
+  | 'reservation_cancelled'
+  | 'payment_failed'
+  // Personnel d'agence
+  | 'agency_reservation_confirmed'
+  | 'agency_reservation_cancelled'
+  | 'agency_refund_required'
+
 export interface AppNotification {
   id: string
-  type: 'reservation_confirmed' | 'reservation_cancelled' | 'payment_failed' | null
-  data: { message: string; reference?: string; reservation_id?: number }
+  type: NotificationType | null
+  data: { message: string; reference?: string; reservation_id?: number; trip_id?: number }
   read_at: string | null
   created_at: string
 }

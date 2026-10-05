@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Reservation;
+use App\Notifications\Channels\PushChannel;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -18,7 +19,7 @@ class ReservationConfirmed extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', PushChannel::class];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -44,6 +45,18 @@ class ReservationConfirmed extends Notification
             'reservation_id' => $this->reservation->id,
             'reference' => $this->reservation->reference,
             'message' => "Votre réservation {$this->reservation->reference} est confirmée. ".TripSummary::for($this->reservation),
+        ];
+    }
+
+    /**
+     * @return array{title: string, body: string, link: string}
+     */
+    public function toPush(object $notifiable): array
+    {
+        return [
+            'title' => 'Réservation confirmée',
+            'body' => $this->toArray($notifiable)['message'],
+            'link' => "/account/reservations/{$this->reservation->id}",
         ];
     }
 }

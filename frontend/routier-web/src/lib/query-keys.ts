@@ -20,4 +20,8 @@ export const queryKeys = {
   payment: (id: number) => ['account', 'payment', id] as const,
   notifications: (params: object = {}) => ['account', 'notifications', params] as const,
   notificationsAll: ['account', 'notifications'] as const,
+  /** Centre de notifications d'un espace : ['account', …] pour le client, ['agency', …] pour le personnel. */
+  spaceNotifications: (space: 'customer' | 'agency', params: object = {}) =>
+    [space === 'customer' ? 'account' : 'agency', 'notifications', params] as const,
+  spaceNotificationsAll: (space: 'customer' | 'agency') => [space === 'customer' ? 'account' : 'agency', 'notifications'] as const,
 }

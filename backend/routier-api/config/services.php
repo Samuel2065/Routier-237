@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Notifications push Firebase Cloud Messaging (API HTTP v1). Le fichier du compte de
+    // service contient une clé privée : hors Git, hors dossier public, jamais renvoyé par l'API.
+    'fcm' => [
+        'enabled' => (bool) env('FCM_ENABLED', false),
+        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/private/firebase-credentials.json')),
+    ],
+
 ];

@@ -2,6 +2,7 @@ import type Echo from 'laravel-echo'
 import type { ChannelAuthorizationCallback } from 'pusher-js'
 import { useSyncExternalStore } from 'react'
 import { adminApi, agencyApi, BROADCAST_AUTH_URL, customerApi } from '@/api/client'
+import { getToken, useAuthStore } from '@/store/auth-store'
 import type { Space } from '@/types/api'
 
 /** Réponse de POST /api/broadcasting/auth (signature du canal privé). */
@@ -29,12 +30,16 @@ export const realtimeEnabled = !!REVERB_KEY
 
 /**
  * Espace dont le jeton autorise un canal privé (mêmes règles que routes/channels.php).
+ * Le canal personnel « user.{id} » utilise la session ouverte (une seule par navigateur).
  */
 export function spaceForChannel(channelName: string): Space | null {
   const name = channelName.replace(/^private-/, '')
   if (name.startsWith('agency.') || name.startsWith('organization.')) return 'agency'
-  if (name.startsWith('user.')) return 'customer'
   if (name === 'admin') return 'admin'
+  if (name.startsWith('user.')) {
+    const sessions = useAuthStore.getState().sessions
+    return (Object.keys(sessions) as Space[]).find((space) => getToken(space) !== undefined) ?? null
+  }
   return null
 }
 

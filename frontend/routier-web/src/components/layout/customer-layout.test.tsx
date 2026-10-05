@@ -8,6 +8,7 @@ vi.mock('@/api/notifications', () => ({
   fetchNotifications: vi.fn(async () => ({ data: [], unread_count: 3, meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } })),
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
+  deleteNotification: vi.fn(),
 }))
 
 function signInCustomer() {

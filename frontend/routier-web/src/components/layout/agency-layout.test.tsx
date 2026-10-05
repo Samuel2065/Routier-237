@@ -9,6 +9,13 @@ vi.mock('@/api/agency', () => ({
   logoutAgency: vi.fn(),
 }))
 
+vi.mock('@/api/notifications', () => ({
+  fetchNotifications: vi.fn(async () => ({ data: [], current_page: 1, last_page: 1, total: 0, unread_count: 2 })),
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
+  deleteNotification: vi.fn(),
+}))
+
 function navLabels() {
   const nav = screen.getByRole('navigation', { name: 'Navigation — Espace agence' })
   return within(nav)
@@ -40,7 +47,7 @@ describe('AgencyLayout', () => {
     expect(navLabels()).toEqual(['Tableau de bord', 'Trajets', 'Réservations', 'Véhicules', 'Personnel', 'Paiements', 'Paramètres'])
   })
 
-  it('shows the signed-in account, a logout button and no notification bell', () => {
+  it('shows the signed-in account, a logout button and the notification bell', async () => {
     signInAgency('counter_clerk', ['dashboard.view', 'reservations.view'])
     renderWithProviders(<AgencyLayout />, { route: '/agency/dashboard' })
 
@@ -49,8 +56,8 @@ describe('AgencyLayout', () => {
     expect(within(sidebar).getByText('Agent de guichet')).toBeInTheDocument()
     expect(within(sidebar).getByRole('button', { name: 'Déconnexion' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Menu du compte — Agent Test' })).toBeInTheDocument()
-    // Pas de notifications pour le personnel dans l'API : aucune cloche affichée.
-    expect(screen.queryByRole('link', { name: /Notifications/ })).not.toBeInTheDocument()
+    // Alertes du personnel (phase 3) : cloche avec le nombre de non lues, vers le centre de notifications.
+    expect(await screen.findByRole('link', { name: 'Notifications, 2 non lue(s)' })).toHaveAttribute('href', '/agency/notifications')
   })
 
   it('applies the agency accent to the document', () => {

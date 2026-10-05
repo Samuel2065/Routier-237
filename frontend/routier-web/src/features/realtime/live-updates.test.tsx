@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type LivePayload, queryKeysFor, useLiveUpdates } from '@/features/realtime/live-updates'
 import { spaceForChannel } from '@/lib/realtime'
+import { useAuthStore } from '@/store/auth-store'
+import { signInAgency } from '@/test/agency-session'
 
 type Listener = (payload: LivePayload) => void
 
@@ -72,6 +74,10 @@ describe('queryKeysFor', () => {
     expect(queryKeysFor('public', { topics: ['availability'], ids: {} })).toContainEqual(['trip'])
   })
 
+  it('refreshes the staff notification center on a personal signal', () => {
+    expect(queryKeysFor('agency', { topics: ['notifications', 'reservations'], ids: {} })).toContainEqual(['agency', 'notifications'])
+  })
+
   it('ignores topics that do not concern the space', () => {
     expect(queryKeysFor('admin', { topics: ['reservations'], ids: {} })).toEqual([])
   })
@@ -81,9 +87,17 @@ describe('spaceForChannel', () => {
   it('authorizes each private channel with the token of its space', () => {
     expect(spaceForChannel('private-agency.3')).toBe('agency')
     expect(spaceForChannel('private-organization.2')).toBe('agency')
-    expect(spaceForChannel('private-user.9')).toBe('customer')
     expect(spaceForChannel('private-admin')).toBe('admin')
     expect(spaceForChannel('private-autre')).toBeNull()
+  })
+
+  it('authorizes the personal channel with the open session, whatever its space', () => {
+    expect(spaceForChannel('private-user.9')).toBeNull()
+
+    signInAgency('counter_clerk', ['dashboard.view'])
+    expect(spaceForChannel('private-user.1')).toBe('agency')
+
+    useAuthStore.setState({ sessions: {} })
   })
 })
 

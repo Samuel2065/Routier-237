@@ -7,6 +7,7 @@ import { UserAvatar } from '@/components/common/user-avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NotificationList } from '@/features/notifications/notification-list'
+import { PushNotificationsCard } from '@/features/notifications/push-notifications-card'
 import { useMyReservations } from '@/features/reservations/queries'
 import { ReservationCard } from '@/features/reservations/reservation-card'
 import { firstName } from '@/lib/format'
@@ -126,7 +127,8 @@ export function AccountPage() {
             <h2 id="notifications-title" className="text-lg font-semibold">
               Notifications
             </h2>
-            <NotificationList />
+            {session && <PushNotificationsCard space="customer" userId={session.user.id} />}
+            <NotificationList space="customer" />
           </section>
         </div>
       </div>

@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\V1\Account\NotificationController;
 use App\Http\Controllers\Api\V1\Account\PaymentController as AccountPaymentController;
 use App\Http\Controllers\Api\V1\Account\ReservationController as AccountReservationController;
 use App\Http\Controllers\Api\V1\Admin\CityController as AdminCityController;
@@ -18,11 +17,13 @@ use App\Http\Controllers\Api\V1\AvatarController;
 use App\Http\Controllers\Api\V1\Management\AgencyController;
 use App\Http\Controllers\Api\V1\Management\OrganizationController;
 use App\Http\Controllers\Api\V1\Management\RouteController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PaymentWebhookController;
 use App\Http\Controllers\Api\V1\Public\AgencyController as PublicAgencyController;
 use App\Http\Controllers\Api\V1\Public\CityController as PublicCityController;
 use App\Http\Controllers\Api\V1\Public\TravelClassController;
 use App\Http\Controllers\Api\V1\Public\TripController as PublicTripController;
+use App\Http\Controllers\Api\V1\PushTokenController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -65,10 +66,21 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::post('auth/me/avatar', [AvatarController::class, 'update'])->middleware('throttle:10,1')->name('auth.avatar.update');
         Route::delete('auth/me/avatar', [AvatarController::class, 'destroy'])->name('auth.avatar.destroy');
+        // Notifications push : inscription / désinscription de cet appareil (Firebase Cloud Messaging).
+        Route::post('auth/push-tokens', [PushTokenController::class, 'store'])->middleware('throttle:20,1')->name('auth.push-tokens.store');
+        Route::delete('auth/push-tokens', [PushTokenController::class, 'destroy'])->name('auth.push-tokens.destroy');
     });
 
+    // Centre de notifications du compte connecté (espaces client et agence).
+    $notificationRoutes = function () {
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+        Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+    };
+
     // Espace client.
-    Route::middleware(['auth:sanctum', 'space:customer', 'throttle:authenticated'])->prefix('account')->name('account.')->group(function () {
+    Route::middleware(['auth:sanctum', 'space:customer', 'throttle:authenticated'])->prefix('account')->name('account.')->group(function () use ($notificationRoutes) {
         Route::get('reservations', [AccountReservationController::class, 'index'])->name('reservations.index');
         Route::post('reservations', [AccountReservationController::class, 'store'])->middleware('throttle:reservations')->name('reservations.store');
         Route::get('reservations/{reservation}', [AccountReservationController::class, 'show'])->name('reservations.show');
@@ -76,14 +88,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('reservations/{reservation}/payments', [AccountPaymentController::class, 'store'])->middleware('throttle:reservations')->name('reservations.payments.store');
         Route::get('payments/{payment}', [AccountPaymentController::class, 'show'])->name('payments.show');
         Route::post('payments/{payment}/simulate', [AccountPaymentController::class, 'simulate'])->name('payments.simulate');
-        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
-        Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        $notificationRoutes();
     });
 
     // Espace agence : director et personnel, limités à leur périmètre par les policies.
-    Route::middleware(['auth:sanctum', 'space:agency', 'throttle:authenticated'])->prefix('agency')->name('agency.')->group(function () {
+    Route::middleware(['auth:sanctum', 'space:agency', 'throttle:authenticated'])->prefix('agency')->name('agency.')->group(function () use ($notificationRoutes) {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        $notificationRoutes();
         Route::apiResource('organizations', OrganizationController::class)->only(['show', 'update']);
         Route::apiResource('agencies', AgencyController::class)->except(['destroy']);
         Route::patch('agencies/{agency}/settings', [AgencyController::class, 'updateSettings'])->name('agencies.settings');

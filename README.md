@@ -52,6 +52,11 @@ identifiants générés, voir `.env.example`) et `VITE_REVERB_APP_KEY` côté fr
 `REVERB_APP_KEY`). Sans Reverb, l'application fonctionne normalement et actualise les écrans par
 interrogation régulière (60 s).
 
+Notifications push (facultatif) : fichier du compte de service Firebase dans
+`storage/app/private/firebase-credentials.json` (jamais commité) et `FCM_ENABLED=true` côté API ;
+variables publiques `VITE_FIREBASE_*` côté frontend (voir `.env.example`). Sans elles, le centre de
+notifications et les toasts fonctionnent normalement, sans push.
+
 ### Comptes de démonstration
 
 Créés par `DemoSeeder` (jamais en production). Mot de passe commun : **`password`**.
@@ -133,13 +138,15 @@ du jeton et que le compte est toujours actif. Les policies vérifient permission
 | public  | `GET travel-classes`                                      | tous                        |
 | public  | `GET trips/search?departure_city_id=&destination_city_id=&date=` (+ `passengers`, `travel_class_id`, `sort=departure\|price`) | tous |
 | public  | `GET trips/{id}` (détail, champ `bookable`), `GET agencies/{id}/trips` | tous          |
+| tous    | `POST auth/push-tokens`, `DELETE auth/push-tokens` (`token` FCM de cet appareil) | compte connecté (ses propres appareils) |
 | tous    | `POST /api/broadcasting/auth` (hors `/v1`) : autorisation d'un canal temps réel privé | compte connecté, selon l'espace du jeton (`routes/channels.php`) |
 | client  | `GET/POST account/reservations`, `GET account/reservations/{id}`, `POST account/reservations/{id}/cancel` | client (ses réservations) |
 | agence  | `GET agency/reservations` (`?trip_id=&status=&date=&search=`), `GET agency/reservations/{id}`, `POST agency/reservations/{id}/cancel` | director, agency_manager, counter_clerk ; lecture : accountant |
 | client  | `POST account/reservations/{id}/payments` (`method`, `phone` pour le mobile money), `GET account/payments/{id}` | client |
 | client  | `POST account/payments/{id}/simulate` (`outcome=paid\|failed`) — passerelle mock, hors production | client |
 | tous    | `POST auth/me/avatar` (multipart `avatar` : JPEG, PNG ou WebP, 2 Mo, 64 à 5000 px), `DELETE auth/me/avatar` | compte connecté (sa propre photo) |
-| client  | `GET account/notifications` (`?unread=1`), `POST account/notifications/{id}/read`, `POST account/notifications/read-all` | client |
+| client  | `GET account/notifications` (`?unread=1`), `POST account/notifications/{id}/read`, `POST account/notifications/read-all`, `DELETE account/notifications/{id}` | client (ses notifications) |
+| agence  | `GET agency/notifications` (`?unread=1`), `POST agency/notifications/{id}/read`, `POST agency/notifications/read-all`, `DELETE agency/notifications/{id}` | tout le personnel (ses notifications) |
 | agence  | `GET agency/payments` (`?status=&method=&trip_id=&date_from=&date_to=&requires_refund=1`), `GET agency/payments/{id}` | director, agency_manager, counter_clerk, accountant |
 | agence  | `POST agency/payments/{id}/refund`                         | accountant (`payments.refund`) |
 | public  | `POST payments/webhooks/{provider}` (signature du fournisseur) | fournisseurs de paiement |
@@ -192,6 +199,12 @@ HTTPS (Nginx) qui transmet les WebSockets `wss://` vers le port de Reverb. Rense
 Relancer Reverb après chaque déploiement (`php artisan reverb:restart`).
 Sur un **hébergement mutualisé** (sans processus permanent) : `BROADCAST_CONNECTION=null` et
 `VITE_REVERB_APP_KEY` vide ; les écrans s'actualisent alors par interrogation régulière.
+
+**Notifications push (Firebase Cloud Messaging)** : déposer le fichier du compte de service sur le
+serveur hors du dossier public (par défaut `storage/app/private/firebase-credentials.json`, ou
+`FIREBASE_CREDENTIALS`), `FCM_ENABLED=true`, et renseigner les `VITE_FIREBASE_*` publiques avant
+`npm run build`. Le frontend doit être servi en **HTTPS** (obligatoire pour les service workers et le
+push, sauf `localhost`) et `dist/firebase-messaging-sw.js` doit être servi à la racine du site.
 
 **Frontend** (`frontend/routier-web`) : `npm ci`, `VITE_API_URL=https://<api>` dans `.env`,
 `npm run build`, puis servir `dist/` comme application monopage (toutes les routes renvoient
@@ -617,3 +630,60 @@ puis `GET /up` (santé de l'API) et `storage/logs/laravel.log`.
   donc jamais provoquer de surréservation, au pire un refus 409 explicite. Pas de mise à jour
   optimiste des places ni des statuts : ils dépendent de la validation du serveur.
 - `php artisan routier:check-production` vérifie aussi les identifiants Reverb et l'usage de HTTPS.
+
+## Décisions et hypothèses (notifications — phase 3a, octobre 2026)
+
+- **Source de vérité** : la table `notifications` de Laravel. Lu, tout lu et suppression sont
+  enregistrés côté serveur (`NotificationController` partagé par les espaces client et agence,
+  chacun limité à ses propres notifications ; une notification d'un autre compte répond 404).
+- **Alertes du personnel** (`App\Notifications\StaffReservationAlert`, base uniquement, pas
+  d'e-mail) envoyées au personnel actif de l'agence du trajet et au director de l'organisation,
+  **seulement s'ils ont la permission correspondante** :
+  réservation confirmée (payée) et annulation par le client → `reservations.view` (le conducteur
+  ne reçoit rien) ; paiement reçu pour une réservation expirée ou annulée → `payments.refund`
+  (comptable). L'annulation d'une réservation payée précise « Paiement à rembourser ».
+  Une alerte qui échoue est journalisée et ne fait jamais échouer le paiement ou l'annulation.
+- **Pas d'alerte pour l'administrateur** pour l'instant : aucun événement de la plateforme ne
+  justifie aujourd'hui d'interrompre le super_admin (à revoir avec les fonctions de la phase 4).
+- **Temps réel** : le canal personnel `user.{id}` est ouvert au compte lui-même depuis n'importe
+  quel espace ; une nouvelle notification y déclenche la relecture du centre.
+- **Toasts** (`NotificationToasts`, bibliothèque `sonner` déjà utilisée) : affichés
+  automatiquement, sans clic sur la cloche, pour chaque notification **non lue jamais vue dans
+  l'onglet** ; rien pour l'historique existant au chargement. L'identifiant de la notification
+  sert d'identifiant du toast : une même notification signalée par Reverb, par un message push
+  ou par l'interrogation de secours ne produit qu'un toast. Fermeture par le bouton X ou après
+  8 s, 3 toasts au plus à la fois, bouton « Voir » (ouvre la page liée et marque comme lu).
+  Fermer un toast ne modifie pas l'historique.
+- **Centre de notifications** : section « Notifications » de `/account` et page
+  `/agency/notifications` (cloche avec le nombre de non lues dans les deux espaces).
+
+## Décisions et hypothèses (notifications push — phase 3b, octobre 2026)
+
+- **Firebase Cloud Messaging, API HTTP v1** appelée directement par Laravel (client HTTP) avec un
+  jeton d'accès obtenu par `google/auth` (bibliothèque officielle de Google) : une seule petite
+  dépendance plutôt qu'un SDK Firebase complet. Jeton d'accès gardé 50 minutes en cache.
+- **Secrets** : le fichier du compte de service (clé privée) reste sur le serveur, hors Git et hors
+  dossier public (`storage/app/private/`), jamais renvoyé par l'API ni écrit dans les journaux. La
+  configuration web Firebase et la clé VAPID sont publiques par conception (frontend).
+- **Appareils** (table `device_tokens`, migration justifiée) : un jeton FCM par navigateur, rattaché
+  au compte **et au jeton de connexion Sanctum** : déconnexion, suspension (jetons révoqués) ou
+  expiration de la session suppriment l'appareil en cascade. Le jeton FCM n'est jamais renvoyé.
+  Réinscrire le même jeton (renouvellement, autre compte sur le même navigateur) met la ligne à jour.
+- **Envoi** : canal de notification `PushChannel` ajouté aux notifications existantes ; l'envoi a lieu
+  **après la réponse HTTP** (`dispatchAfterResponse`, sans file d'attente), donc sans délai pour
+  l'utilisateur. Jetons déclarés invalides par Firebase (`UNREGISTERED`, `SENDER_ID_MISMATCH`, jeton
+  mal formé) supprimés ; panne de Firebase journalisée sans jamais bloquer l'action.
+- **Messages « data » uniquement**, avec l'identifiant de la notification en base : le service worker
+  (`public/firebase-messaging-sw.js`) affiche la notification système quand l'onglet est fermé ou en
+  arrière-plan (`tag` = identifiant, une seule notification système par notification) ; onglet au
+  premier plan, le message relance la lecture du centre et le toast reste unique (même règle que
+  Reverb). Clic : ouverture de la page liée (chemin interne uniquement).
+- **Permission** : demandée uniquement après un clic sur « Activer » dans la carte « Notifications sur
+  cet appareil » (centre de notifications client et agence), avec explication préalable ; refus,
+  navigateur non compatible et connexion non sécurisée sont expliqués. Le choix est mémorisé par
+  compte sur l'appareil ; « Désactiver » retire le jeton côté serveur et chez Firebase.
+- **Limites** : HTTPS obligatoire hors `localhost` ; Safari iOS/iPadOS seulement si le site est
+  ajouté à l'écran d'accueil (iOS 16.4+) ; navigation privée et certains navigateurs (Firefox en mode
+  strict, navigateurs intégrés) peuvent refuser le push ; une notification système n'apparaît pas si
+  le navigateur est entièrement fermé sur ordinateur. Le centre de notifications reste la référence.
+- `php artisan routier:check-production` signale un `FCM_ENABLED=true` sans fichier de compte de service.

@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\V1\Account;
 
 use App\Actions\Reservations\ChangeReservationStatus;
 use App\Actions\Reservations\CreateReservation;
+use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\StoreReservationRequest;
 use App\Http\Resources\ReservationResource;
 use App\Models\Reservation;
+use App\Notifications\StaffReservationAlert;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -62,7 +64,13 @@ class ReservationController extends Controller
     {
         Gate::authorize('cancel', $reservation);
 
-        return new ReservationResource($this->details($changeStatus->cancel($reservation, byCustomer: true)));
+        $reservation = $changeStatus->cancel($reservation, byCustomer: true);
+
+        // Personnel de l'agence prévenu ; un paiement confirmé devient « à rembourser ».
+        $paid = $reservation->payments()->where('status', PaymentStatus::Paid)->exists();
+        StaffReservationAlert::dispatch($reservation, StaffReservationAlert::CANCELLED_BY_CUSTOMER, $paid);
+
+        return new ReservationResource($this->details($reservation));
     }
 
     private function details(Reservation $reservation): Reservation

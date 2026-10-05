@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\V1\Account;
+namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -8,7 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 /**
- * Notifications applicatives du client (table notifications Laravel, §15.14).
+ * Centre de notifications (table notifications Laravel, §15.14), partagé par les espaces
+ * client et agence : chacun ne voit et ne modifie que ses propres notifications.
+ * Lu / supprimé est enregistré en base : rien ne réapparaît après actualisation.
  */
 class NotificationController extends Controller
 {
@@ -43,6 +45,16 @@ class NotificationController extends Controller
     public function markAllAsRead(Request $request): Response
     {
         $request->user()->unreadNotifications()->update(['read_at' => now()]);
+
+        return response()->noContent();
+    }
+
+    /**
+     * Retire définitivement une notification de son centre (404 si elle appartient à un autre compte).
+     */
+    public function destroy(Request $request, string $notification): Response
+    {
+        $request->user()->notifications()->whereKey($notification)->firstOrFail()->delete();
 
         return response()->noContent();
     }

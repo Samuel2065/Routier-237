@@ -7,6 +7,8 @@ use App\Models\Reservation;
 use App\Models\Trip;
 use App\Models\Vehicle;
 use App\Support\LiveUpdates;
+use App\Support\Push\AccessTokenProvider;
+use App\Support\Push\GoogleAccessTokenProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -24,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Une collecte de signaux temps réel par requête ou commande.
         $this->app->scoped(LiveUpdates::class);
+
+        // Notifications push : jeton d'accès Google obtenu avec le compte de service Firebase.
+        $this->app->singleton(AccessTokenProvider::class, fn () => new GoogleAccessTokenProvider((string) config('services.fcm.credentials')));
     }
 
     /**
