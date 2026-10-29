@@ -59,7 +59,9 @@ notifications et les toasts fonctionnent normalement, sans push.
 
 ### Comptes de démonstration
 
-Créés par `DemoSeeder` (jamais en production). Mot de passe commun : **`password`**.
+Créés par `DemoSeeder`, automatiquement en local et en tests uniquement (`APP_ENV=local|testing`).
+Mot de passe commun : **`password`**. Sur un serveur en ligne : `php artisan routier:seed-demo`
+(mêmes données, mot de passe saisi au lancement, 12 caractères minimum ; voir « Mise en production »).
 Toutes les données sont fictives.
 
 | Rôle            | E-mail                               | Rattachement                     |
@@ -184,12 +186,21 @@ php artisan key:generate
 php artisan routier:check-production   # code de sortie 1 si un point bloquant est détecté
 php artisan migrate --force
 php artisan db:seed --force   # villes, classes VIP/Classique, rôles et permissions
-                               # (DemoSeeder est ignoré quand APP_ENV=production)
+                               # (DemoSeeder est ignoré hors APP_ENV=local|testing)
 php artisan storage:link       # photos de profil (storage/app/public → public/storage)
 php artisan config:cache && php artisan route:cache
 ```
 
-Ne jamais lancer `DemoSeeder` ni `migrate:fresh` en production. Planificateur à activer
+Ne jamais lancer `DemoSeeder` ni `migrate:fresh` en production.
+
+**Phase de test en ligne (décision du client, 29/10/2026)** : serveur temporairement en
+`APP_ENV=staging` (paiement simulé autorisé, `routier:check-production` le signale), puis
+`php artisan routier:seed-demo` : confirmation, mot de passe commun saisi deux fois (jamais
+`password`), une seule exécution, refus si des comptes `@routier237.test` existent déjà. Les comptes
+sont fictifs (dont un super_admin) : à supprimer et `APP_ENV=production` à remettre avant
+l'ouverture au public.
+
+Planificateur à activer
 (cron chaque minute : `php artisan schedule:run`) pour l'expiration des réservations en attente,
 la clôture des trajets passés et la purge des jetons. Le premier super_admin se crée en console
 (`php artisan tinker`), aucun compte n'étant livré avec le code.

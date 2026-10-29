@@ -7,7 +7,8 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Référentiels : toujours. Données de démonstration : jamais en production.
+     * Référentiels : toujours. Données de démonstration (mot de passe « password ») : uniquement
+     * en local et en tests. Sur un serveur en ligne, même en staging : `routier:seed-demo`.
      */
     public function run(): void
     {
@@ -17,7 +18,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
         ]);
 
-        if (! app()->isProduction()) {
+        if (app()->environment('local', 'testing')) {
             $this->call(DemoSeeder::class);
         }
     }

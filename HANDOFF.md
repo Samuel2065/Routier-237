@@ -253,19 +253,35 @@ Détails : README « Décisions et hypothèses (Super Admin — phase 4) ».
 
 ### Après la phase 4
 
-Phase 4 commitée par le client : `cd2a96b`, poussée sur GitLab ; **GitHub (`origin`) resté à `7c4b26f`**
-au 29/10/2026 (à pousser).
-
-**Point du 29/10/2026 (audit, aucun code modifié)** : backend 186 tests OK (2495 assertions), Pint OK ;
-frontend 104 tests OK (25 fichiers), lint OK, build OK. `frontend/routier-web/.env.example` remis à
-`VITE_API_URL=http://localhost:8000` (le passage à 8001 était un contournement local). Le `.env` local
-du frontend pointe vers `https://api.routier237.artischools.com` : mise en ligne apparemment entamée,
-état du serveur non vérifié.
+Phase 4 commitée par le client : `cd2a96b`. Bilan du 29/10/2026 commité `77168b3` (GitLab + GitHub) :
+backend 186 tests OK, frontend 104 tests OK ; `frontend/routier-web/.env.example` remis à
+`VITE_API_URL=http://localhost:8000` (le passage à 8001 était un contournement local).
 
 Toutes les phases du prompt sont réalisées. Reste à tester par le client : réception d'une notification
-push Firebase dans un vrai navigateur. Prochaines étapes possibles, à décider avec le client :
-mise en production (VPS Hostinger : Supervisor pour Reverb, HTTPS, Resend pour les e-mails ;
-`routier:check-production`), puis vrais paiements quand les identifiants arriveront.
+push Firebase dans un vrai navigateur.
+
+## 4 bis. Site en ligne : phase de test du client (depuis le 29/10/2026)
+
+Le client a mis le site en ligne : API `https://api.routier237.artischools.com` (répond, villes
+présentes). Il veut tester tout le parcours avec les agences et comptes de démo. Décisions du client :
+**1A** mot de passe des comptes de démo choisi au lancement (jamais `password`) ; **2A** serveur
+temporairement en `APP_ENV=staging` pour autoriser le paiement simulé (à remettre en `production`
+avant l'ouverture au public).
+
+**Étape 1 — commande `routier:seed-demo` : réalisée (29/10/2026, non commitée, en attente du test).**
+
+- `app/Console/Commands/SeedDemoData.php` : refuse si référentiels absents ou comptes `@routier237.test`
+  existants, ignore si la démo existe, confirmation, mot de passe saisi deux fois (12 caractères,
+  lettres + chiffres, pas `password`), `DemoSeeder` dans une transaction, liste des comptes à la fin.
+- `DemoSeeder` : propriété `$password` (défaut `password`), constante `EMAIL_DOMAIN`.
+- `DatabaseSeeder` : démo automatique seulement en `local`/`testing` (avant : tout sauf `production`)
+  → en staging, `db:seed --force` ne crée plus de comptes avec `password`. Vérifié par mutation.
+- Tests : `tests/Feature/Database/SeedDemoCommandTest.php` (7). La démo compte **8 comptes**.
+- README : « Comptes de démonstration » et « Mise en production » mis à jour.
+
+À faire ensuite (à décider) : commande de suppression des données de démo avant l'ouverture ;
+mise en production définitive (`APP_ENV=production`, Resend, Reverb sur VPS), puis vrais paiements
+quand les identifiants arriveront.
 
 ## 5. Fichiers clés de la refonte
 

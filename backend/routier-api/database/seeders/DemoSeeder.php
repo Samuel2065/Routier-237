@@ -17,7 +17,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * Données de démonstration (hors production). Toutes les données sont fictives.
- * Mot de passe de tous les comptes : « password » (documenté dans le README).
+ * Mot de passe de tous les comptes : « password » (documenté dans le README), sauf avec
+ * `routier:seed-demo` qui impose un mot de passe choisi (serveur en ligne).
  *
  * Ne s'exécute qu'une fois : ignoré si l'organisation de démonstration existe déjà.
  */
@@ -25,7 +26,11 @@ class DemoSeeder extends Seeder
 {
     public const ORGANIZATION_SLUG = 'routier-demo-voyages';
 
+    public const EMAIL_DOMAIN = 'routier237.test';
+
     public const PASSWORD = 'password';
+
+    public string $password = self::PASSWORD;
 
     public function run(): void
     {
@@ -159,7 +164,7 @@ class DemoSeeder extends Seeder
             $user = new User([
                 'name' => $name,
                 'email' => $email,
-                'password' => self::PASSWORD,
+                'password' => $this->password,
             ]);
             $user->organization_id = $org?->id;
             $user->email_verified_at = now();
