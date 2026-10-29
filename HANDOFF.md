@@ -1,4 +1,4 @@
-# Routier+237 — Point de reprise (04/10/2026)
+# Routier+237 — Point de reprise (29/10/2026)
 
 Document de passation pour reprendre le travail dans une nouvelle session sans perte de contexte.
 Référence fonctionnelle : **Cahier des charges Routier+237 v1.0** (PDF fourni par le client).
@@ -56,9 +56,9 @@ de compte de service Firebase. Pas de dépendance ni de migration sans justifica
 |---|---|---|
 | 0 | Audit sans modification + plan | ✅ validé (diagnostic confirmé par le client) |
 | 1 | Sécurité et séparation des accès | ✅ validé par le client, commit `49f7584` (GitLab + GitHub) |
-| 2 | Données React actualisées sans rechargement (Reverb) | ✅ commit `232534b` (GitLab + GitHub), **en attente du feu vert pour la Phase 3** |
+| 2 | Données React actualisées sans rechargement (Reverb) | ✅ commit `232534b` (GitLab + GitHub) |
 | 3 | Toasts, centre de notifications, Firebase Cloud Messaging | ✅ commit `7c4b26f` (GitLab + GitHub) |
-| 4 | Fonctionnalités Super Admin | ✅ terminée le 05/10, **non commitée, en attente du test et du feu vert client** |
+| 4 | Fonctionnalités Super Admin | ✅ commit `cd2a96b` (GitLab ; GitHub à pousser) |
 
 ### Constats de la Phase 0 (aucun code modifié)
 
@@ -219,7 +219,7 @@ interrogation). Détails : README « Décisions et hypothèses (temps réel — 
 
 Phase 3 validée par le client et commitée : `7c4b26f` (GitLab + GitHub).
 
-### Phase 4 — Super Admin : réalisée (05/10/2026, non commitée, en attente du test client)
+### Phase 4 — Super Admin : réalisée (05/10/2026) et commitée (`cd2a96b`)
 
 Décisions du client : **pas de changement de rôle** par le super_admin (lecture seule des rôles et
 permissions) ; **journal d'audit** oui ; réinitialisation par **l'admin + « Mot de passe oublié ? »**.
@@ -253,8 +253,19 @@ Détails : README « Décisions et hypothèses (Super Admin — phase 4) ».
 
 ### Après la phase 4
 
-Toutes les phases du prompt sont réalisées. Prochaines étapes possibles, à décider avec le client :
-mise en production (VPS Hostinger : Supervisor pour Reverb, HTTPS, Resend pour les e-mails).
+Phase 4 commitée par le client : `cd2a96b`, poussée sur GitLab ; **GitHub (`origin`) resté à `7c4b26f`**
+au 29/10/2026 (à pousser).
+
+**Point du 29/10/2026 (audit, aucun code modifié)** : backend 186 tests OK (2495 assertions), Pint OK ;
+frontend 104 tests OK (25 fichiers), lint OK, build OK. `frontend/routier-web/.env.example` remis à
+`VITE_API_URL=http://localhost:8000` (le passage à 8001 était un contournement local). Le `.env` local
+du frontend pointe vers `https://api.routier237.artischools.com` : mise en ligne apparemment entamée,
+état du serveur non vérifié.
+
+Toutes les phases du prompt sont réalisées. Reste à tester par le client : réception d'une notification
+push Firebase dans un vrai navigateur. Prochaines étapes possibles, à décider avec le client :
+mise en production (VPS Hostinger : Supervisor pour Reverb, HTTPS, Resend pour les e-mails ;
+`routier:check-production`), puis vrais paiements quand les identifiants arriveront.
 
 ## 5. Fichiers clés de la refonte
 
@@ -269,7 +280,7 @@ mise en production (VPS Hostinger : Supervisor pour Reverb, HTTPS, Resend pour l
   `2026_09_25_000001_add_avatar_path_to_users_table.php`, `UserResource` (`avatar_url`), `lang/fr/validation.php`.
 - Images : `src/assets/landing/*.webp` (utilisées). Les PNG originaux de `src/assets/` (≈ 19 Mo, dont
   3 nouveaux non utilisés : `agency-image.png`, `destination-image.png`, `20 janv. 2026, 01_42_42.png`)
-  ne sont pas dans le build ; **décision client en attente** : les sortir du dépôt avant commit.
+  ne sont pas dans le build et sont ignorés par Git (`.gitignore`) : ils restent seulement en local.
 
 ## 6. Démarrage et vérification
 
@@ -302,9 +313,10 @@ intercepte les requêtes : 404 partout). Sinon `php artisan serve --port=8001` +
 
 ## 7. Limites connues (ne pas inventer)
 
-- Notifications : uniquement pour les clients (pas pour le personnel ni l'admin).
-- Pas de journal d'activité (« Historique ») pour le personnel/admin ; pas de modification du nom,
-  e-mail, téléphone (lecture seule) ; pas de page « toutes les agences », de mentions légales ni de
-  coordonnées de la plateforme.
+- Notifications : clients et personnel d'agence (phase 3) ; aucune alerte destinée au super_admin.
+- Journal d'audit et vues d'activité : super_admin uniquement (phase 4) ; pas d'« Historique » pour le
+  personnel. Le super_admin ne change pas les rôles (décision client).
+- Pas de modification du nom, e-mail, téléphone (lecture seule) ; pas de page « toutes les agences »,
+  de mentions légales ni de coordonnées de la plateforme.
 - Pas de thème sombre (clair uniquement).
 - Premier super_admin en production : à créer en console (`php artisan tinker`).
