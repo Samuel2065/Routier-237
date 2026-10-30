@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, FlaskConical, Loader2, XCircle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { PaymentStatusBadge } from '@/components/common/status-badges'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { markAnnounced } from '@/features/notifications/notification-meta'
 import { isPaymentInProgress, usePayment, useSimulatePayment } from '@/features/payments/queries'
 import { getErrorMessage } from '@/lib/api-error'
 import { formatPrice } from '@/lib/format'
@@ -28,10 +29,17 @@ export function PaymentTracker({ payment: initial, reservationId }: { payment: P
     previousStatus.current = payment.status
 
     if (!isPaymentInProgress(payment)) {
+      // Toast annoncé ici : la notification du même événement n'en aura pas un second.
+      if (payment.status === 'paid') {
+        markAnnounced('reservation_confirmed', reservationId)
+        toast.success('Paiement confirmé : votre réservation est confirmée.')
+      }
+      if (payment.status === 'failed') {
+        markAnnounced('payment_failed', reservationId)
+        toast.error('Le paiement a échoué. Vous pouvez réessayer.')
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.myReservation(reservationId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.notificationsAll })
-      if (payment.status === 'paid') toast.success('Paiement confirmé : votre réservation est confirmée.')
-      if (payment.status === 'failed') toast.error('Le paiement a échoué. Vous pouvez réessayer.')
     }
   }, [payment, queryClient, reservationId])
 

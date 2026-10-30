@@ -2,11 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteNotification, fetchNotifications } from '@/api/notifications'
+import { deleteNotification, fetchNotifications, markNotificationRead } from '@/api/notifications'
 import { NotificationList } from '@/features/notifications/notification-list'
-import { freshNotifications, notificationLink } from '@/features/notifications/notification-meta'
+import { freshNotifications, markAnnounced, notificationLink, wasAnnounced } from '@/features/notifications/notification-meta'
 import { NotificationToasts } from '@/features/notifications/notification-toasts'
 import { renderWithProviders } from '@/test/render'
 import type { AppNotification, NotificationPage } from '@/types/api'
@@ -18,7 +18,7 @@ vi.mock('@/api/notifications', () => ({
   deleteNotification: vi.fn(async () => {}),
 }))
 
-vi.mock('sonner', () => ({ toast: vi.fn() }))
+vi.mock('@/lib/toast', () => ({ toast: vi.fn() }))
 
 // Pas de temps réel dans ces tests : seule la logique des toasts est vérifiée.
 vi.mock('@/features/realtime/live-updates', () => ({ useLiveUpdates: vi.fn() }))
@@ -93,13 +93,47 @@ describe('NotificationToasts', () => {
     await waitFor(() => expect(toast).toHaveBeenCalledTimes(1))
     expect(toast).toHaveBeenCalledWith(
       'Nouvelle réservation',
-      expect.objectContaining({ id: 'notification-new', description: 'Nouvelle réservation confirmée R237-new.', duration: 8000 }),
+      expect.objectContaining({ id: 'notification-new', description: 'Nouvelle réservation confirmée R237-new.' }),
     )
 
     // Même notification signalée une seconde fois (Reverb puis push, par exemple) : aucun doublon.
     await act(() => queryClient.invalidateQueries())
     await waitFor(() => expect(fetchNotifications).toHaveBeenCalledTimes(3))
     expect(toast).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips the toast of an event already announced by its own screen, and marks it read', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    vi.mocked(fetchNotifications).mockResolvedValueOnce(page([]))
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <NotificationToasts space="customer" userId={1} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    // Premier chargement terminé (historique vu) avant l'arrivée de la notification.
+    await waitFor(() => expect(queryClient.getQueryCache().getAll()[0]?.state.status).toBe('success'))
+
+    // Le suivi du paiement a déjà affiché « Paiement confirmé » pour la réservation 42.
+    markAnnounced('reservation_confirmed', 42)
+    const confirmed = notification('paid', { type: 'reservation_confirmed', data: { message: 'Réservation R237-42 confirmée.', reservation_id: 42 } })
+    const other = notification('other', { type: 'reservation_confirmed', data: { message: 'Réservation R237-7 confirmée.', reservation_id: 7 } })
+    vi.mocked(fetchNotifications).mockResolvedValue(page([other, confirmed]))
+    await act(() => queryClient.invalidateQueries())
+
+    await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('customer', 'paid'))
+    expect(toast).toHaveBeenCalledTimes(1)
+    expect(toast).toHaveBeenCalledWith('Réservation confirmée', expect.objectContaining({ id: 'notification-other' }))
+  })
+})
+
+describe('wasAnnounced', () => {
+  it('only matches the same event type for the same reservation', () => {
+    markAnnounced('payment_failed', 5)
+    expect(wasAnnounced(notification('a', { type: 'payment_failed', data: { message: '', reservation_id: 5 } }))).toBe(true)
+    expect(wasAnnounced(notification('b', { type: 'reservation_confirmed', data: { message: '', reservation_id: 5 } }))).toBe(false)
+    expect(wasAnnounced(notification('c', { type: 'payment_failed', data: { message: '', reservation_id: 6 } }))).toBe(false)
   })
 })
 

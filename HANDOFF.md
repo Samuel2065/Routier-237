@@ -279,6 +279,50 @@ avant l'ouverture au public).
 - Tests : `tests/Feature/Database/SeedDemoCommandTest.php` (7). La démo compte **8 comptes**.
 - README : « Comptes de démonstration » et « Mise en production » mis à jour.
 
+Commité `a1a79b3` (GitLab + GitHub).
+
+**Hébergement constaté (29/10/2026, visite du hPanel en lecture seule)** : Hostinger **Business Web
+Hosting** (mutualisé, LiteSpeed, PHP 8.3), compte SSH `u133979320` (SSH actif, port 65002).
+- Frontend : `npm run build` en local, contenu de `dist/` envoyé dans
+  `domains/routier237.artischools.com/public_html/` (+ `.htaccess` pour les routes React). Le `.env`
+  local du frontend ne contient que `VITE_API_URL` → build en ligne **sans Reverb ni Firebase**.
+- API : sous-domaine `api.` → `public_html/api/` (seulement `index.php` + `.htaccess`) ; `index.php`
+  charge Laravel depuis `/home/u133979320/routier237-api/backend/routier-api` (hors du web, structure du
+  dépôt : probablement un `git clone` en SSH, non vérifié). `.env`, `.git` : 403 en HTTP.
+- hPanel : aucun déploiement Git configuré ; **aucune tâche Cron Routier+237** (`schedule:run` absent).
+- Mutualisé → Reverb impossible : `BROADCAST_CONNECTION=null` côté API (repli par interrogation).
+- `public_html/api/` n'a pas de lien `storage` → photos de profil probablement inaccessibles (à vérifier).
+- Frontend local (29/10) : `.env` → `VITE_API_URL=http://localhost:8000` (`npm run dev`, sinon CORS refusé
+  par l'API en ligne) ; `.env.production` → `https://api.routier237.artischools.com` (lu par `npm run build`).
+  Les deux ignorés par Git.
+- Composer en SSH : `proc_open` désactivé → `composer install --no-dev --optimize-autoloader --no-scripts`
+  puis `php artisan package:discover --ansi`.
+
+**29/10/2026 : démo installée en ligne par le client** (`git pull` → `a1a79b3`, `.env` serveur en
+`APP_ENV=staging`, `BROADCAST_CONNECTION=null`, `routier:seed-demo` réussi). Vérifié par HTTP : les
+2 agences de démo sont publiques ; recherche Bertoua → Yaoundé du lendemain = trajets 06:00 (7000) et
+07:30 (5000). Tâche Cron `schedule:run` : demandée au client, non vérifiée. Prochaine étape : test du
+parcours complet par le client.
+
+**Étape 2 — toasts : réalisée et validée par le client (30/10/2026).** Retour du client :
+doublon au paiement (toast du suivi « Paiement confirmé… » + toast de la notification « Réservation
+confirmée », idem en cas d'échec) ; toasts à mieux styliser avec barre de temps et sortie animée.
+- `notification-meta.ts` : `markAnnounced(type, réservation)` / `wasAnnounced` (10 min, par onglet) ;
+  `payment-tracker.tsx` les annonce ; `notification-toasts.tsx` saute le toast et marque la notification
+  lue (elle reste dans le centre). Les autres toasts d'action ne recoupent aucune notification du même
+  compte (vérifié : l'annulation par le client ne notifie pas le client).
+- Style : 1re version sur sonner refusée par le client (« je ne vois pas la barre »). Modèle imposé : le
+  toast de son projet La Pépinière (`ecole-la-pepiniere/src/admin/toast`). **Sonner retiré** (npm
+  uninstall, `components/ui/sonner.tsx` supprimé) ; toaster maison : `src/lib/toast.ts` (store, même API
+  `toast()` / `.success` / `.error` / `.info` / `.warning` / `.dismiss`, option `id` = jamais de doublon,
+  durées 4/6/7/8 s selon le type, 4 visibles max) et `src/components/common/toaster.tsx` (en haut à droite,
+  en bas sur téléphone ; carte blanche, icône dans une pastille colorée, croix, bouton d'action, barre de
+  3 px qui se vide, pause au survol et onglet masqué, entrée et sortie animées) ; keyframes `toast-in`,
+  `toast-out`, `toast-countdown` dans `index.css`. Imports `sonner` → `@/lib/toast` dans 21 fichiers.
+- Tests : `notifications.test.tsx` (+2, vérifié par mutation), `components/common/toaster.test.tsx` (3).
+  Frontend 109 tests OK (26 fichiers), lint OK, build OK. Rendu contrôlé dans Chrome par styles calculés
+  (fenêtre réduite : pas de capture) ; rendu visuel à valider par le client.
+
 À faire ensuite (à décider) : commande de suppression des données de démo avant l'ouverture ;
 mise en production définitive (`APP_ENV=production`, Resend, Reverb sur VPS), puis vrais paiements
 quand les identifiants arriveront.
@@ -336,3 +380,16 @@ intercepte les requêtes : 404 partout). Sinon `php artisan serve --port=8001` +
   de mentions légales ni de coordonnées de la plateforme.
 - Pas de thème sombre (clair uniquement).
 - Premier super_admin en production : à créer en console (`php artisan tinker`).
+
+## 8. Prochain chantier (validé le 30/10/2026) : déploiement par GitHub Actions
+
+Méthode choisie par le client : workflow GitHub Actions sur le modèle de La Pépinière
+(`ecole-la-pepiniere/.github/workflows/deploy.yml` + `deploy/*.sh`) : lancement manuel, essai à blanc par
+défaut, vendor et build faits sur GitHub, versions `releases/<id>` + `current`, `.env` et `storage` dans
+`shared/`, sauvegardes vérifiées avant bascule, migrations sur option, vérifications HTTP, `rollback.sh`.
+Spécificités Routier : deux racines (front `public_html/`, API `public_html/api/`), migration depuis
+`~/routier237-api` (git clone), fichier Firebase, lien `storage`, Cron `schedule:run`, `APP_ENV=staging`
+pendant les tests. Étapes : 1 fiche projet → 2 scripts dans le dépôt → 3 clé SSH + secrets (client) →
+4 essai à blanc → 5 premier déploiement → 6 Cron, storage, retour arrière testé.
+Local : trajets de démo du 31/10 au 6/11 ajoutés à la main (`routier237_v1`) ; commande
+`routier:demo-trips` reportée (non prioritaire).

@@ -29,6 +29,29 @@ export function notificationLink(space: NotificationSpace, notification: AppNoti
   return reference ? `/agency/reservations?search=${encodeURIComponent(reference)}` : null
 }
 
+/** Événements déjà annoncés dans cet onglet par l'écran de l'action (clé `type:réservation`). */
+const announced = new Map<string, number>()
+
+/** Une annonce locale couvre la notification correspondante pendant ce délai. */
+const ANNOUNCED_TTL_MS = 10 * 60 * 1000
+
+/**
+ * À appeler avec le toast d'un écran qui annonce lui-même un événement (ex. résultat du
+ * paiement) : la notification du même événement n'aura pas de second toast.
+ */
+export function markAnnounced(type: NotificationType, reservationId: number): void {
+  announced.set(`${type}:${reservationId}`, Date.now())
+}
+
+/** Vrai si l'événement de cette notification a déjà eu son toast dans cet onglet. */
+export function wasAnnounced(notification: AppNotification): boolean {
+  const reservationId = notification.data.reservation_id
+  if (!notification.type || !reservationId) return false
+
+  const at = announced.get(`${notification.type}:${reservationId}`)
+  return at !== undefined && Date.now() - at < ANNOUNCED_TTL_MS
+}
+
 /** Au-delà, les notifications arrivées en même temps restent dans le centre sans toast. */
 const MAX_TOASTS_AT_ONCE = 3
 

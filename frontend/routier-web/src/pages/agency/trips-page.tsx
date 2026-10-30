@@ -1,7 +1,7 @@
 import { CalendarClock, MoreHorizontal, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import type { TripAction } from '@/api/agency'
 import { ConfirmDialog, type ConfirmRequest } from '@/components/common/confirm-dialog'
 import { PageHeader } from '@/components/common/page-header'

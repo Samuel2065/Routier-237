@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { RouterProvider } from 'react-router'
-import { Toaster } from '@/components/ui/sonner'
+import { Toaster } from '@/components/common/toaster'
 import { createQueryClient } from '@/lib/query-client'
 import { watchSession } from '@/lib/session-watch'
 import { router } from '@/routes/router'
@@ -15,7 +15,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster position="top-center" richColors closeButton />
+      <Toaster />
     </QueryClientProvider>
   )
 }

@@ -1,6 +1,6 @@
 import { LogIn, UserPlus } from 'lucide-react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Container } from '@/components/layout/container'
 import { PageHeader } from '@/components/common/page-header'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/states'

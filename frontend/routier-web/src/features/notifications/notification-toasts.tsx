@@ -1,15 +1,12 @@
 import { Bell } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import type { NotificationSpace } from '@/api/notifications'
-import { freshNotifications, notificationLink, notificationTitle } from '@/features/notifications/notification-meta'
+import { freshNotifications, notificationLink, notificationTitle, wasAnnounced } from '@/features/notifications/notification-meta'
 import { useMarkNotificationRead, useNotifications } from '@/features/notifications/queries'
 import { usePushNotifications } from '@/features/notifications/use-push-notifications'
 import { useLiveUpdates } from '@/features/realtime/live-updates'
-
-/** Durée d'affichage d'un toast avant fermeture automatique. */
-const TOAST_DURATION_MS = 8000
 
 /**
  * Notifications en direct d'un espace : écoute du canal personnel du compte et toasts
@@ -35,14 +32,19 @@ export function NotificationToasts({ space, userId }: { space: NotificationSpace
     seen.current = result.seen
 
     for (const notification of result.fresh) {
+      // Déjà annoncé par l'écran de l'action : un seul toast, la notification passe en lue.
+      if (wasAnnounced(notification)) {
+        markRead(notification.id)
+        continue
+      }
+
       const link = notificationLink(space, notification)
 
       toast(notificationTitle(notification), {
         // Même identifiant = même toast : jamais de doublon pour une notification.
         id: `notification-${notification.id}`,
         description: notification.data.message,
-        icon: <Bell className="size-4" aria-hidden="true" />,
-        duration: TOAST_DURATION_MS,
+        icon: <Bell aria-hidden="true" />,
         action: link
           ? {
               label: 'Voir',

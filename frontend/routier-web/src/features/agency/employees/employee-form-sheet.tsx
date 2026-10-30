@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { z } from 'zod'
 import type { EmployeeInput } from '@/api/agency'
 import { FormField } from '@/components/common/form-field'

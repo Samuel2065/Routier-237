@@ -1,5 +1,5 @@
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Container } from '@/components/layout/container'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { RegisterForm } from '@/features/auth/register-form'

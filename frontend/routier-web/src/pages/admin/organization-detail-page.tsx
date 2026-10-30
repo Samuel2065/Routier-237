@@ -1,7 +1,7 @@
 import { ArrowLeft, Ban, Pencil, Plus, RotateCcw, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { ConfirmDialog, type ConfirmRequest } from '@/components/common/confirm-dialog'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/states'
 import { RecordStatusBadge } from '@/components/common/status-badges'

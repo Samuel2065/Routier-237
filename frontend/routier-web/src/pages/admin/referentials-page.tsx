@@ -1,6 +1,6 @@
 import { Check, Loader2, MapPin, Pencil, Plus, X } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { CitySelect } from '@/components/common/city-select'
 import { PageHeader } from '@/components/common/page-header'
 import { ErrorState, LoadingState } from '@/components/common/states'

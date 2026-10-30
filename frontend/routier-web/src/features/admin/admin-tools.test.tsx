@@ -8,7 +8,7 @@ import { renderWithProviders } from '@/test/render'
 import type { AdminUser, AuditLogEntry } from '@/types/api'
 
 vi.mock('@/api/admin', () => ({ fetchAdminUser: vi.fn(), fetchAuditLogs: vi.fn(), sendPasswordResetLink: vi.fn() }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const manager: AdminUser = {
   id: 5,

@@ -1,6 +1,6 @@
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { ConfirmDialog, type ConfirmRequest } from '@/components/common/confirm-dialog'
 import { ErrorState, LoadingState } from '@/components/common/states'
 import { Badge } from '@/components/ui/badge'

@@ -1,6 +1,6 @@
 import { Building2, Camera, Landmark, Loader2, Mail, Phone, Trash2, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { PageHeader } from '@/components/common/page-header'
 import { UserAvatar } from '@/components/common/user-avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
