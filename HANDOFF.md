@@ -391,5 +391,37 @@ Spécificités Routier : deux racines (front `public_html/`, API `public_html/ap
 `~/routier237-api` (git clone), fichier Firebase, lien `storage`, Cron `schedule:run`, `APP_ENV=staging`
 pendant les tests. Étapes : 1 fiche projet → 2 scripts dans le dépôt → 3 clé SSH + secrets (client) →
 4 essai à blanc → 5 premier déploiement → 6 Cron, storage, retour arrière testé.
+**Étape 1 — fiche projet (30/10/2026, en attente de validation)** :
+
+| Élément | Valeur |
+|---|---|
+| Dépôt / branche | GitHub `Samuel2065/Routier-237` (+ GitLab `Sam2065/Routier-237`), `main` |
+| Frontend | `https://routier237.artischools.com` → `~/domains/routier237.artischools.com/public_html/` |
+| API | `https://api.routier237.artischools.com` → `public_html/api/` (`index.php` + `.htaccess`) |
+| Backend actuel | `~/routier237-api/backend/routier-api` (git clone, `.env` dedans) |
+| Backend cible | `~/domains/routier237.artischools.com/app/{releases,current,shared}` (modèle Pépinière) |
+| Versions | PHP ^8.2 (site 8.3, Symfony 7 dans composer.lock) ; Node 22 ; Laravel 12 |
+| Build | `npm ci && npm run build` → `dist/` (`.env.production` à recréer dans le workflow) |
+| Tests | `php artisan test` (MySQL `routier237_v1_testing`) ; `npm test`, `npm run lint` |
+| `.env` prod | à déplacer vers `app/shared/.env` (chmod 600) en gardant **le même APP_KEY** |
+| Fichiers privés | `storage/app/private/firebase-credentials.json` → `shared/storage` |
+| Cron | `schedule:run` inutilisable (`proc_open`) : appeler `reservations:expire` (chaque minute), `trips:complete-past` (00:30), `sanctum:prune-expired --hours=24` (quotidien) |
+| Sauvegarde / retour | dump DB + archive `public_html` vérifiés avant bascule ; `rollback.sh` |
+| Smoke tests | `/`, `/login`, `/agency/login`, `/admin/login`, `/up`, API `/api/v1/cities` |
+
 Local : trajets de démo du 31/10 au 6/11 ajoutés à la main (`routier237_v1`) ; commande
 `routier:demo-trips` reportée (non prioritaire).
+
+**Étape 2 — scripts dans le dépôt (30/10/2026, non commitée, en attente de validation)** :
+`.github/workflows/deploy.yml` (manuel, dry_run par défaut ; build : MySQL de service pour les tests,
+`VITE_API_URL` en variable, paquet `web/ api/ backend/ deploy/` ; e2e Docker ; deploy SSH + vérifications
+HTTP des deux domaines), `deploy/remote-deploy.sh` (deux racines : `public_html/` et `public_html/api/`,
+lien `api/storage` → `shared/storage/app/public`), `rollback.sh`, `diagnose.sh`, `preflight.php`
+(staging accepté, Reverb interdit, queue sync, mock interdit en production, Firebase lisible si FCM),
+`mysql-defaults.php`, `ssh-setup.sh` (+ test), `public_html/.htaccess` (SPA), `public_html/api/{index.php,.htaccess}`
+(refuse l'hôte principal), `env.production.example`, `tests/{Dockerfile,e2e.sh}` (PHP 8.3, deux vhosts,
+cron sans proc_open), `deploy/README.md` (reprise de l'ancien `.env` + stockage, secrets, Cron), `.gitattributes`.
+Vérifié en local : syntaxe bash/PHP, `ssh-setup-test.sh` OK, preflight démarre Laravel. **Non vérifié en
+local (pas de Docker ni ShellCheck) : e2e et ShellCheck → premier essai à blanc sur GitHub.**
+Trouvé : `QUEUE_CONNECTION=database` dans `.env.example` sans worker possible → `sync` en ligne (rien n'est
+mis en file : push en afterResponse) ; `FIREBASE_CREDENTIALS=` vide casserait le chemin par défaut.

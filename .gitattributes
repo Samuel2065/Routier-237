@@ -3,3 +3,10 @@
 *.jpg binary
 *.ico binary
 *.pdf binary
+
+# Scripts et fichiers serveur exécutés sous Linux : toujours LF, même depuis Windows
+# (sinon « $'\r': command not found »).
+*.sh            text eol=lf
+.htaccess       text eol=lf
+deploy/**       text eol=lf
+.github/**      text eol=lf

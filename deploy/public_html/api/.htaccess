@@ -1,0 +1,32 @@
+# Routier+237 — API Laravel (https://api.routier237.artischools.com).
+# Racine du sous-domaine : public_html/api. Laravel lui-même est hors du web (app/current).
+Options -MultiViews -Indexes +SymLinksIfOwnerMatch
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Ce dossier est aussi atteignable par routier237.artischools.com/api : refusé.
+    RewriteCond %{HTTP_HOST} !^api\. [NC]
+    RewriteRule ^ - [R=404,L]
+
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Photos de profil (lien vers le stockage partagé) : fichiers réels uniquement.
+    RewriteRule ^storage/ - [L]
+
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>

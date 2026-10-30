@@ -1,0 +1,183 @@
+name: Déploiement (Hostinger)
+
+# Lancement manuel uniquement. Par défaut : dry_run=true (build, tests, e2e, diagnostic SSH
+# en lecture seule ; rien ne change sur le serveur), sans migrations, sans premier déploiement.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build, tests et diagnostic en lecture seule uniquement (aucun changement sur le serveur)"
+        type: boolean
+        default: true
+      run_migrations:
+        description: "Lancer php artisan migrate --force (la base est sauvegardée et vérifiée avant)"
+        type: boolean
+        default: false
+      allow_initial:
+        description: "Premier déploiement : remplacer l'installation manuelle de public_html et public_html/api (sauvegardées avant)"
+        type: boolean
+        default: false
+
+concurrency: { group: deploy-production, cancel-in-progress: false }
+permissions: { contents: read }
+
+env:
+  SITE: routier237.artischools.com
+  PHP_VERSION: "8.3"   # PHP du site sur Hostinger (composer.json : ^8.2)
+  BACKEND: backend/routier-api
+  FRONTEND: frontend/routier-web
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      # Base des tests backend (phpunit.xml : routier237_v1_testing, root sans mot de passe).
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: routier237_v1_testing
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scripts de déploiement (fins de ligne LF, syntaxe bash, ShellCheck)
+        run: |
+          if grep -rlI $'\r' deploy .github .gitattributes; then echo "CRLF line endings found"; exit 1; fi
+          command -v shellcheck >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q shellcheck; }
+          shellcheck --version | head -n 2
+          for f in deploy/*.sh deploy/tests/*.sh; do bash -n "$f"; done
+          shellcheck -S warning deploy/*.sh deploy/tests/*.sh
+          bash deploy/tests/ssh-setup-test.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.FRONTEND }}/package-lock.json
+      - name: Frontend (npm ci, lint, tests, build)
+        working-directory: ${{ env.FRONTEND }}
+        env:
+          # Variable publique intégrée au build (jamais de secret dans VITE_*).
+          VITE_API_URL: https://api.routier237.artischools.com
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm run build
+          test -f dist/index.html
+          grep -rq "api.routier237.artischools.com" dist/assets || { echo "build without the production API URL"; exit 1; }
+          if grep -rq "localhost:8000" dist/assets; then echo "build points to localhost"; exit 1; fi
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo_mysql, zip, bcmath, fileinfo
+          coverage: none
+      - name: Backend (Composer, tests, syntaxe PHP)
+        working-directory: ${{ env.BACKEND }}
+        run: |
+          php -v | head -n 1
+          composer validate --no-check-publish
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate
+          php artisan test
+          for f in ../../deploy/*.php ../../deploy/public_html/api/index.php; do php -l "$f"; done
+
+      - name: "Paquet de la version (vendor construit ici : pas de Composer sur le serveur)"
+        run: |
+          rm -f "$BACKEND/.env"
+          (cd "$BACKEND" && rm -rf vendor \
+            && composer install --no-dev --optimize-autoloader --no-interaction --no-progress \
+            && composer check-platform-reqs --no-dev)
+          mkdir -p pkg/web pkg/api pkg/deploy
+          cp -r "$FRONTEND/dist/." pkg/web/
+          cp deploy/public_html/.htaccess pkg/web/
+          cp deploy/public_html/api/index.php deploy/public_html/api/.htaccess pkg/api/
+          cp deploy/preflight.php deploy/mysql-defaults.php deploy/rollback.sh pkg/deploy/
+          rsync -a \
+            --exclude=/storage --exclude=/tests --exclude=/node_modules --exclude=/.env \
+            --exclude=/public/storage --exclude=/public/hot \
+            "$BACKEND/" pkg/backend/
+          test ! -e pkg/backend/.env
+          for d in pkg/backend/resources/views pkg/backend/bootstrap/cache pkg/backend/vendor pkg/web/assets; do
+            test -d "$d" || { echo "missing in package: $d"; exit 1; }
+          done
+          tar -czf release.tgz -C pkg .
+          ls -lh release.tgz
+      - uses: actions/upload-artifact@v4
+        with: { name: release, path: release.tgz, retention-days: 7 }
+
+  # Joue les vrais scripts de déploiement et de retour arrière dans un conteneur proche de
+  # Hostinger (PHP 8.3 + .htaccess Apache + MariaDB, proc_open désactivé, deux sous-domaines).
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: release }
+      - name: "E2E : déploiement, routage, stockage, retour arrière (Docker)"
+        run: bash deploy/tests/e2e.sh release.tgz
+
+  deploy:
+    needs: [build, e2e]
+    runs-on: ubuntu-latest
+    environment: production   # à protéger par une approbation dans les réglages du dépôt
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      RUN_MIGRATIONS: ${{ inputs.run_migrations && '1' || '0' }}
+      ALLOW_INITIAL: ${{ inputs.allow_initial && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: release }
+
+      # Écrit ~/.ssh/{config,deploy_key,known_hosts} et les valide avec `ssh -G` + ssh-keygen
+      # (sans connexion, n'affiche que des étiquettes OK/FAIL).
+      - name: Configuration SSH (clé d'hôte épinglée, validée, aucun secret affiché)
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: bash deploy/ssh-setup.sh
+
+      - name: Diagnostic (lecture seule)
+        run: tr -d '\r' < deploy/diagnose.sh | ssh target "bash -s -- $SITE"
+
+      - name: Envoi et bascule de la version
+        if: ${{ !inputs.dry_run }}
+        run: |
+          ID="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::12}"
+          scp release.tgz target:"release-$ID.tgz"
+          tr -d '\r' < deploy/remote-deploy.sh | ssh target "cat > remote-deploy-$ID.sh"
+          ssh target "bash remote-deploy-$ID.sh $SITE $ID ~/release-$ID.tgz $RUN_MIGRATIONS $ALLOW_INITIAL; s=\$?; rm -f remote-deploy-$ID.sh release-$ID.tgz; exit \$s"
+
+      - name: Vérifications HTTP
+        if: ${{ !inputs.dry_run }}
+        run: |
+          # Une vérification indépendante par ligne : URL et code attendu.
+          fail=0
+          while read -r url want; do
+            got=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+            if [ "$got" = "$want" ]; then echo "OK   $url -> $got"; else echo "FAIL $url -> $got (want $want)"; fail=1; fi
+          done <<URLS
+          https://$SITE/ 200
+          https://$SITE/login 200
+          https://$SITE/agency/login 200
+          https://$SITE/admin/login 200
+          https://$SITE/search 200
+          https://api.$SITE/up 200
+          https://api.$SITE/api/v1/cities 200
+          https://api.$SITE/api/v1/account/reservations 401
+          URLS
+          exit $fail
+
+      - name: Suppression de la clé
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/config ~/.ssh/known_hosts

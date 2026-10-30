@@ -1,0 +1,35 @@
+# Routier+237 — site React (https://routier237.artischools.com).
+# L'API est servie par son sous-domaine (public_html/api/, voir api/.htaccess).
+Options -MultiViews -Indexes +SymLinksIfOwnerMatch
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Fichiers du build (assets, favicon, service worker Firebase).
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Toutes les autres routes : application React (React Router).
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    <FilesMatch "\.(js|css|webp|jpg|png|svg|woff2)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    # Noms fixes : toujours revalidés (sinon un ancien build reste en cache).
+    <FilesMatch "(\.html|^firebase-messaging-sw\.js|^favicon\.svg)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
