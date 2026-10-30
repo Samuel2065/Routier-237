@@ -64,6 +64,10 @@ jobs:
           # Variable publique intégrée au build (jamais de secret dans VITE_*).
           VITE_API_URL: https://api.routier237.artischools.com
         run: |
+          # Même npm que sur le poste de développement : npm 10 (fourni avec Node 22) lit
+          # package-lock.json autrement et refuse `npm ci` (ajv).
+          npm install -g npm@11.0.0
+          npm -v
           npm ci
           npm run lint
           npm test
