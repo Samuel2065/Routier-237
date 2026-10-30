@@ -168,7 +168,8 @@ class AdminPlatformToolsTest extends TestCase
         $this->asAdmin($this->admin)->patchJson("/api/v1/admin/organizations/{$agency->organization_id}", ['status' => 'inactive'])->assertOk();
 
         $suspension = AuditLog::query()->where('action', 'user.suspended')->sole();
-        $this->assertSame(['fields' => ['status'], 'status' => ['from' => 'active', 'to' => 'suspended']], $suspension->metadata);
+        // assertEquals : MySQL réordonne les clés des colonnes JSON, l'ordre n'est pas significatif.
+        $this->assertEquals(['fields' => ['status'], 'status' => ['from' => 'active', 'to' => 'suspended']], $suspension->metadata);
         $this->assertSame($this->admin->name, $suspension->actor_name);
 
         $employeeUpdate = AuditLog::query()->where('action', 'employee.updated')->sole();
