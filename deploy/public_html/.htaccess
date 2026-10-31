@@ -14,6 +14,10 @@ DirectoryIndex index.html
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
 
+    # Ancien fichier du build (supprimé au déploiement) : vrai 404, pas index.html
+    # (sinon « MIME type text/html » et le rechargement automatique ne se déclenche pas).
+    RewriteRule ^assets/ - [R=404,L]
+
     # Toutes les autres routes : application React (React Router).
     RewriteRule ^ index.html [L]
 </IfModule>

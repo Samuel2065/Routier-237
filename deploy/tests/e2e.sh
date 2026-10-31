@@ -148,6 +148,7 @@ expect "$SITE" /.htaccess 403 any
 expect "$SITE" /api/v1/cities 404 any
 asset=$(as_site "ls $ROOT/public_html/assets | grep -m1 '\.js$'")
 expect "$SITE" "/assets/$asset" 200 any
+expect "$SITE" /assets/ancien-build-ABC123.js 404 any
 expect "$API_HOST" /up 200 any
 expect "$API_HOST" /api/v1/cities 200 json
 check "cities seeded" grep -q '"slug":"bertoua"' <<<"$BODY"

@@ -449,3 +449,9 @@ de `rollback.sh` ; ancienne installation `~/routier237-api` à garder tant que l
 `shared/storage/logs/cron.log` reçoit une ligne par minute. Commandes exactes : `deploy/README.md`.
 Reste : test de `rollback.sh`. Vu au passage (autres projets du compte, non touchés) : tâches `saas`
 (script absent), `wp-cron` (chemin PHP doublé) et `pepiniere:prune-media` (sans `cd … artisan`) en échec.
+
+**31/10/2026 — 2e déploiement réussi ; onglets ouverts avant le déploiement cassés.** Les anciens
+fichiers `assets/*.js` supprimés étaient servis en `index.html` (200, `text/html`) → « Failed to load
+module script ». Corrigé : `deploy/public_html/.htaccess` renvoie 404 sous `assets/` (+ contrôle e2e),
+`src/main.tsx` recharge une fois sur `vite:preloadError` (garde 60 s en sessionStorage). Lint, 109 tests,
+build OK. À vérifier au prochain déploiement. Reste : test de `rollback.sh`.
