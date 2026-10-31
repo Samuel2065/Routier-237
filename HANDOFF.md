@@ -425,3 +425,13 @@ Vérifié en local : syntaxe bash/PHP, `ssh-setup-test.sh` OK, preflight démarr
 local (pas de Docker ni ShellCheck) : e2e et ShellCheck → premier essai à blanc sur GitHub.**
 Trouvé : `QUEUE_CONNECTION=database` dans `.env.example` sans worker possible → `sync` en ligne (rien n'est
 mis en file : push en afterResponse) ; `FIREBASE_CREDENTIALS=` vide casserait le chemin par défaut.
+
+**31/10/2026 — essai à blanc vert, site en ligne inchangé.** Corrigé avant : `config/broadcasting.php`
+(`env()` lit `null` comme null PHP → `env('BROADCAST_CONNECTION') ?? 'null'`, sinon preflight en échec et
+« Broadcast connection [] » à l'exécution), commit `50ce1cb`. Contrôle en ligne (session client) : API,
+recherche, trajet, agence, réservations, profil OK. Mais `index.html` en ligne date du 06/10 et contient
+encore sonner, sans `toast-countdown` : le workflow a tourné avec `dry_run=true` (défaut), rien n'a été
+copié. Toasts vérifiés en local sans Reverb (comme en ligne) : création, paiement simulé, passage à
+« Payé » par interrogation, notification « confirmée » non doublée → aucun réglage de code nécessaire.
+**Prochaine étape : relancer le workflow avec `dry_run` décoché et `allow_initial` coché (premier vrai
+déploiement ; `run_migrations` si migrations en attente), puis vérifier la date de `index.html`.**
