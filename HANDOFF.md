@@ -442,3 +442,10 @@ gardé : paiement simulé). Workflow lancé avec `dry_run` décoché, `allow_ini
 Vérifié par le client : nouveaux toasts en ligne, photo de profil mise à jour (lien `api/storage` OK).
 Reste (étape 6) : Cron (`reservations:expire`, `trips:complete-past`, `sanctum:prune-expired`) et test
 de `rollback.sh` ; ancienne installation `~/routier237-api` à garder tant que le retour arrière n'est pas testé.
+
+**31/10/2026 — Cron en place (étape 6, partie 1).** 3 tâches hPanel (`reservations:expire` chaque minute,
+`trips:complete-past` 00:30, `sanctum:prune-expired` 03:00) avec `/usr/bin/php` (8.4) et enveloppe
+`/bin/bash -c '…'` : hPanel ajoute sa redirection après la commande et écrasait `>> cron.log`. Vérifié :
+`shared/storage/logs/cron.log` reçoit une ligne par minute. Commandes exactes : `deploy/README.md`.
+Reste : test de `rollback.sh`. Vu au passage (autres projets du compte, non touchés) : tâches `saas`
+(script absent), `wp-cron` (chemin PHP doublé) et `pepiniere:prune-media` (sans `cd … artisan`) en échec.
