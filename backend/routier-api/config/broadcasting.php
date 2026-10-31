@@ -15,7 +15,8 @@ return [
     |
     */
 
-    'default' => env('BROADCAST_CONNECTION', 'null'),
+    // env() convertit la chaîne "null" en null PHP : on retombe sur le driver 'null'.
+    'default' => env('BROADCAST_CONNECTION') ?? 'null',
 
     /*
     |--------------------------------------------------------------------------
