@@ -435,3 +435,10 @@ copié. Toasts vérifiés en local sans Reverb (comme en ligne) : création, pai
 « Payé » par interrogation, notification « confirmée » non doublée → aucun réglage de code nécessaire.
 **Prochaine étape : relancer le workflow avec `dry_run` décoché et `allow_initial` coché (premier vrai
 déploiement ; `run_migrations` si migrations en attente), puis vérifier la date de `index.html`.**
+
+**31/10/2026 — premier vrai déploiement réussi.** `app/shared/.env` repris de `~/routier237-api` (chmod 600,
+`QUEUE_CONNECTION` passé de `database` à `sync`, doublon `BROADCAST_CONNECTION` retiré, `APP_ENV=staging`
+gardé : paiement simulé). Workflow lancé avec `dry_run` décoché, `allow_initial` coché, sans migrations.
+Vérifié par le client : nouveaux toasts en ligne, photo de profil mise à jour (lien `api/storage` OK).
+Reste (étape 6) : Cron (`reservations:expire`, `trips:complete-past`, `sanctum:prune-expired`) et test
+de `rollback.sh` ; ancienne installation `~/routier237-api` à garder tant que le retour arrière n'est pas testé.
