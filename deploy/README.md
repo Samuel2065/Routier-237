@@ -78,13 +78,19 @@ vérifications HTTP. Un échec avant la bascule laisse le site inchangé.
 
 ## Tâches Cron (hPanel → Avancé → Tâches Cron)
 
-`schedule:run` ne fonctionnant pas, une tâche par commande (PHP : vérifier le chemin avec `diagnose.sh`) :
+`schedule:run` ne fonctionnant pas, une tâche par commande, type « Personnalisé ». PHP : `/usr/bin/php`
+(8.4 en ligne de commande, vérifié le 31/10/2026). **Envelopper dans `/bin/bash -c '…'`** : hPanel ajoute
+sa propre redirection après la commande, qui écrase la nôtre (fichier créé mais vide, sortie seulement
+dans « Afficher le résultat »). Chemin complet, pas de `~`.
 
 | Fréquence | Commande |
 |---|---|
-| `* * * * *` | `cd ~/domains/routier237.artischools.com/app/current && /usr/bin/php artisan reservations:expire >> storage/logs/cron.log 2>&1` |
-| `30 0 * * *` | `cd ~/domains/routier237.artischools.com/app/current && /usr/bin/php artisan trips:complete-past >> storage/logs/cron.log 2>&1` |
-| `0 3 * * *` | `cd ~/domains/routier237.artischools.com/app/current && /usr/bin/php artisan sanctum:prune-expired --hours=24 >> storage/logs/cron.log 2>&1` |
+| `* * * * *` | `/bin/bash -c 'cd /home/u133979320/domains/routier237.artischools.com/app/current && /usr/bin/php artisan reservations:expire >> storage/logs/cron.log 2>&1'` |
+| `30 0 * * *` | `/bin/bash -c 'cd /home/u133979320/domains/routier237.artischools.com/app/current && /usr/bin/php artisan trips:complete-past >> storage/logs/cron.log 2>&1'` |
+| `0 3 * * *` | `/bin/bash -c 'cd /home/u133979320/domains/routier237.artischools.com/app/current && /usr/bin/php artisan sanctum:prune-expired --hours=24 >> storage/logs/cron.log 2>&1'` |
+
+Contrôle : `tail -5 ~/domains/routier237.artischools.com/app/shared/storage/logs/cron.log` (une ligne
+« 0 réservation(s) expirée(s). » par minute). Dans hPanel, la minute doit être `30` seule (pas `0,30`).
 
 ## Retour arrière
 
